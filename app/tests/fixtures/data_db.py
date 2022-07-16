@@ -85,3 +85,10 @@ def db_orders_three(connection, table_line_items, dict_orders_tree, table_orders
 @pytest.fixture(scope="function")
 def db_orders_all(connection, db_orders_one, db_orders_two, db_orders_three):
     return [db_orders_one, db_orders_two, db_orders_three]
+
+@pytest.fixture(scope="function")
+def db_employer_array_five(connection, table_emploee, dict_emploee_array_five):
+    ins_q = table_emploee.insert()
+    result = connection.execute(ins_q, dict_emploee_array_five)
+
+    return dict_emploee_array_five

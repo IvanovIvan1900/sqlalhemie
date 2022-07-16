@@ -100,3 +100,32 @@ def dict_orders_tree(db_user_two,db_cookie_one, db_cookie_array_two_element)->di
         ]
     }
 
+@pytest.fixture(scope="function")
+def dict_emploee_array_five():
+    return [
+        {
+         "id":1,
+         "manager_id": None,
+         "name":"manager one",
+        },
+        {
+         "id":2,
+         "manager_id":None,
+         "name":"manager two",
+        },
+        {
+         "id":3,
+         "manager_id":1,
+         "name":"worker one, manager one",
+        },
+        {
+         "id":4,
+         "manager_id":1,
+         "name":"worker two manager one",
+        },
+        {
+         "id":5,
+         "manager_id":2,
+         "name": "worker three manager two",
+        },
+    ]
