@@ -53,6 +53,36 @@ def db_orders_one(connection, table_line_items , dict_orders_one, table_orders):
     return dict_orders_one
 
 @pytest.fixture(scope="function")
+def db_orders_succes(connection, table_line_items , dict_orders_succes, table_orders):
+    dict_orders_succes.pop("order_id", None)
+    ins_q = table_orders.insert()
+    result = connection.execute(ins_q, [dict_orders_succes])
+    dict_orders_succes["order_id"] = result.inserted_primary_key.order_id
+    ins_line_q = table_line_items.insert()
+    for elem in dict_orders_succes["line_items"]:
+        elem["order_id"] = dict_orders_succes["order_id"]
+        elem.pop("line_items_id", None)
+        result = connection.execute(ins_line_q, [elem])
+        elem["line_items_id"] = result.inserted_primary_key.line_items_id
+    
+    return dict_orders_succes
+
+@pytest.fixture(scope="function")
+def db_orders_not_succes(connection, table_line_items , dict_orders_not_succes, table_orders):
+    dict_orders_not_succes.pop("order_id", None)
+    ins_q = table_orders.insert()
+    result = connection.execute(ins_q, [dict_orders_not_succes])
+    dict_orders_not_succes["order_id"] = result.inserted_primary_key.order_id
+    ins_line_q = table_line_items.insert()
+    for elem in dict_orders_not_succes["line_items"]:
+        elem["order_id"] = dict_orders_not_succes["order_id"]
+        elem.pop("line_items_id", None)
+        result = connection.execute(ins_line_q, [elem])
+        elem["line_items_id"] = result.inserted_primary_key.line_items_id
+    
+    return dict_orders_not_succes
+
+@pytest.fixture(scope="function")
 def db_orders_two(connection, table_line_items, dict_orders_two, table_orders):
     dict_orders_two.pop("order_id", None)
     ins_q = table_orders.insert()

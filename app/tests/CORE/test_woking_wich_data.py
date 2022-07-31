@@ -339,5 +339,30 @@ class TestTransaction():
 
         return success
     
-    def test_transaction_succes(self, connection:Connection):
-        pass
+    def test_transaction_succes(self, connection:Connection, db_orders_succes:dict, db_cookie_one:dict, table_line_items:table, table_cookies:table, table_orders:table):
+        """this is order succes and commit transaction
+
+        Args:
+        """
+        self.connection = connection
+        self.table_line_items = table_line_items
+        self.table_cookies = table_cookies
+        self.table_orders = table_orders
+        self.ship_it(db_orders_succes.get("order_id"))
+        sel_query = select([table_cookies]).where(table_cookies.c.cookie_id == db_orders_succes["line_items"][0]["cookie_id"])
+        result = connection.execute(sel_query).fetchall()
+        assert result[0]["quantity"] == 1
+
+    def test_transaction_not_succes(self, connection:Connection, db_orders_not_succes:dict, db_cookie_one:dict, table_line_items:table, table_cookies:table, table_orders:table):
+        """this is order succes and rollback transaction
+
+        Args:
+        """
+        self.connection = connection
+        self.table_line_items = table_line_items
+        self.table_cookies = table_cookies
+        self.table_orders = table_orders
+        self.ship_it(db_orders_not_succes.get("order_id"))
+        sel_query = select([table_cookies]).where(table_cookies.c.cookie_id == db_orders_not_succes["line_items"][0]["cookie_id"])
+        result = connection.execute(sel_query).fetchall()
+        assert result[0]["quantity"] == db_cookie_one["quantity"]

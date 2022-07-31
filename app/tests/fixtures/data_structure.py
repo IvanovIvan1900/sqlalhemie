@@ -93,6 +93,32 @@ def dict_orders_two(db_user_one,db_cookie_one, db_cookie_array_two_element)->dic
     }
 
 @pytest.fixture(scope="function")
+def dict_orders_succes(db_user_one:dict,db_cookie_one:dict)->dict:
+    return {
+        "user_id":db_user_one["user_id"], 
+        "line_items":[
+            {
+                "cookie_id":db_cookie_one["cookie_id"],
+                "quantity":db_cookie_one["quantity"]-1,
+                "extended_cost":150,
+            }
+        ]
+    }
+
+@pytest.fixture(scope="function")
+def dict_orders_not_succes(db_user_one:dict,db_cookie_one:dict)->dict:
+    return {
+        "user_id":db_user_one["user_id"], 
+        "line_items":[
+            {
+                "cookie_id":db_cookie_one["cookie_id"],
+                "quantity":db_cookie_one["quantity"]+1,
+                "extended_cost":150,
+            }
+        ]
+    }
+
+@pytest.fixture(scope="function")
 def dict_orders_tree(db_user_two,db_cookie_one, db_cookie_array_two_element)->dict:
     return {
         "user_id":db_user_two["user_id"], 

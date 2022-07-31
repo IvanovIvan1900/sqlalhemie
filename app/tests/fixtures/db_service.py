@@ -1,7 +1,7 @@
 from datetime import datetime
 
 import pytest
-from sqlalchemy import (Column, DateTime, ForeignKey, Integer, MetaData,
+from sqlalchemy import (Boolean, CheckConstraint, Column, DateTime, ForeignKey, Integer, MetaData,
                         Numeric, String, Table, create_engine, inspect)
 
 
@@ -32,7 +32,8 @@ def table_orders(engine, table_users):
     metadata = MetaData(bind=engine)
     orders = Table('orders', metadata,
     Column('order_id', Integer(), primary_key=True),
-    Column('user_id', ForeignKey(table_users.c.user_id))
+    Column('user_id', ForeignKey(table_users.c.user_id)),
+    Column('shipped', Boolean(), default=False)
     )
     metadata.create_all(engine)
 
@@ -64,7 +65,8 @@ def table_cookies(engine):
     Column('cookie_recipe_url', String(255)),
     Column('cookie_sku', String(55)),
     Column('quantity', Integer()),
-    Column('unit_cost', Numeric(12, 2))
+    Column('unit_cost', Numeric(12, 2)),
+    CheckConstraint('quantity >= 0', name='quantity_positive')
     )
     metadata.create_all(engine)
 
