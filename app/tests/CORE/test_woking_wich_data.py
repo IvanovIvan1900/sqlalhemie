@@ -1,27 +1,33 @@
 import collections
-from operator import attrgetter, itemgetter
+from operator import itemgetter
+from typing import Any
+
 import pytest
-from sqlalchemy import Numeric, and_, cast, delete, desc, func, insert, or_, select, update
+from sqlalchemy import (Numeric, and_, cast, delete, desc, func, insert, or_,
+                        select, table, text, update)
+from sqlalchemy.engine.base import Connection
+from sqlalchemy.exc import IntegrityError
 
 
-def get_dict_from_object(results_item):
-    return {key:value for key, value in results_item._mapping.items() }
+def get_dict_from_object(result_items):
+    return dict(result_items._mapping.items())
+
 
 class TestInsertion():
-    def test_insert_cookie_one_method(self, connection, table_cookies, dict_cookie_one):
+    def test_insert_cookie_one_method(self, connection:Connection, table_cookies:table, dict_cookie_one:dict):
         ins = table_cookies.insert().values(**dict_cookie_one)
         # print(str(ins))
         result = connection.execute(ins)
         assert result.rowcount == 1
 
-    def test_insert_cookie_two_method(self, connection, table_cookies, dict_cookie_one):
+    def test_insert_cookie_two_method(self, connection:Connection, table_cookies:table, dict_cookie_one:dict):
         ins = insert(table_cookies).values(**dict_cookie_one)
         # print(str(ins))
         result = connection.execute(ins)
         assert result.rowcount == 1
         # a = 4
 
-    def test_insert_many(self, connection ,table_cookies, array_of_two_cookie):
+    def test_insert_many(self, connection:Connection ,table_cookies:table, array_of_two_cookie:list[dict]):
         ins = table_cookies.insert()
         result = connection.execute(ins, array_of_two_cookie)
         assert result.rowcount == 2
@@ -30,7 +36,7 @@ class TestInsertion():
 
 class TestQueryingData():
 
-    def test_query_one(self, connection, table_cookies, db_cookie_one, dict_cookie_one):
+    def test_query_one(self, connection:Connection, table_cookies:table, db_cookie_one:dict, dict_cookie_one:dict):
         s = select([table_cookies])
         result_proxy = connection.execute(s)
         results = result_proxy.fetchall()
@@ -39,7 +45,7 @@ class TestQueryingData():
         dict_from_db = dict(results[0]._mapping.items())
         assert dict_cookie_one == dict_from_db
 
-    def test_query_two(self, connection, table_cookies, db_cookie_one, dict_cookie_one):
+    def test_query_two(self, connection:Connection, table_cookies:table, db_cookie_one:dict, dict_cookie_one:dict):
         s = table_cookies.select()
         result_proxy = connection.execute(s)
         results = result_proxy.fetchall()
@@ -48,7 +54,7 @@ class TestQueryingData():
         dict_from_db = dict(results[0]._mapping.items())
         assert dict_cookie_one == dict_from_db
 
-    def test_result_proxy(self, connection, table_cookies, db_cookie_array_two_element):
+    def test_result_proxy(self, connection:Connection, table_cookies:table, db_cookie_array_two_element:list[dict]):
         # sourcery skip: dict-comprehension
         s = table_cookies.select()
         result_proxy = connection.execute(s)
@@ -66,14 +72,14 @@ class TestQueryingData():
             dic_of_element[column_name] = first_row[column_name]
         a = 4
 
-    def test_query_concrete_column(self, connection, table_cookies, db_cookie_one):
+    def test_query_concrete_column(self, connection:Connection, table_cookies:table, db_cookie_one:dict):
         select_query = select([table_cookies.c.cookie_name, table_cookies.c.quantity])
         resutl_proxy = connection.execute(select_query)
         assert len(resutl_proxy.keys()) == 2
         print(resutl_proxy.keys())
         result = resutl_proxy.first()
 
-    def test_query_order(self, connection, table_cookies, db_cookie_one, db_cookie_array_two_element):
+    def test_query_order(self, connection:Connection, table_cookies:table, db_cookie_one:table, db_cookie_array_two_element:list[dict]):
         select_query = select([table_cookies.c.cookie_name, table_cookies.c.quantity])
         select_query = select_query.order_by(table_cookies.c.quantity)
         resutl_proxy = connection.execute(select_query)
@@ -82,7 +88,7 @@ class TestQueryingData():
             assert prev_quantity <= elem.quantity
             prev_quantity = elem.quantity
 
-    def test_query_order_desc(self, connection, table_cookies, db_cookie_one, db_cookie_array_two_element):
+    def test_query_order_desc(self, connection:Connection, table_cookies:table, db_cookie_one:dict, db_cookie_array_two_element:list[dict]):
         select_query = select([table_cookies.c.cookie_name, table_cookies.c.quantity])
         select_query = select_query.order_by(desc(table_cookies.c.quantity))
         resutl_proxy = connection.execute(select_query)
@@ -91,31 +97,31 @@ class TestQueryingData():
             assert prev_quantity >= elem.quantity
             prev_quantity = elem.quantity
 
-    def test_query_func(self, connection, table_cookies, db_cookie_one, db_cookie_array_two_element):
+    def test_query_func(self, connection:Connection, table_cookies:table, db_cookie_one:dict, db_cookie_array_two_element:list[dict]):
         select_query = select([func.count(table_cookies.c.cookie_name).label('inventory_count')])
         resutl_proxy = connection.execute(select_query)
         result = resutl_proxy.first()
         assert 'inventory_count' in  result.keys()
 
-    def test_query_filter(self, connection, table_cookies, db_cookie_one, db_cookie_array_two_element):
+    def test_query_filter(self, connection:Connection, table_cookies:table, db_cookie_one:dict, db_cookie_array_two_element:list[dict]):
         select_query = select([table_cookies]).where(table_cookies.c.cookie_name.like('%chocolate%'))
         resutl_proxy = connection.execute(select_query)
         for record in resutl_proxy.fetchall():
             assert 'chocolate' in record.cookie_name
 
-    def test_query_operator(self, connection, table_cookies, db_cookie_one, db_cookie_array_two_element):
+    def test_query_operator(self, connection:Connection, table_cookies:table, db_cookie_one:dict, db_cookie_array_two_element:list[dict]):
         select_query = select([table_cookies.c.cookie_name, ('SKU-' + table_cookies.c.cookie_sku).label('sku'), table_cookies.c.cookie_sku])
         for row in connection.execute(select_query).fetchall():
             assert f'SKU-{row.cookie_sku}' == row.sku
 
-    def test_query_operator_cast(self, connection, table_cookies, db_cookie_one, db_cookie_array_two_element):
+    def test_query_operator_cast(self, connection:Connection, table_cookies:table, db_cookie_one:dict, db_cookie_array_two_element:list[dict]):
         select_query = select([table_cookies.c.cookie_name,
                     cast((table_cookies.c.quantity * table_cookies.c.unit_cost),
                     Numeric(12,2)).label('inv_cost'), table_cookies.c.quantity, table_cookies.c.unit_cost])
         for row in connection.execute(select_query).fetchall():
             assert row.inv_cost == row.quantity * row.unit_cost
 
-    def test_query_where_and(self, connection, table_cookies, db_cookie_one, db_cookie_array_two_element):
+    def test_query_where_and(self, connection:Connection, table_cookies:table, db_cookie_one:dict, db_cookie_array_two_element:list[dict]):
         select_query = select([table_cookies]).where(
                 and_(
                 table_cookies.c.quantity > 23,
@@ -125,7 +131,7 @@ class TestQueryingData():
         for row in connection.execute(select_query).fetchall():
             assert row.quantity > 23 and row.unit_cost < 0.40
 
-    def test_query_where_or(self, connection, table_cookies, db_cookie_one, db_cookie_array_two_element):
+    def test_query_where_or(self, connection:Connection, table_cookies:table, db_cookie_one:dict, db_cookie_array_two_element:list[dict]):
         select_query = select([table_cookies]).where(
                     or_(
                     table_cookies.c.quantity.between(10, 50),
@@ -136,7 +142,7 @@ class TestQueryingData():
             assert 'chip' in row.cookie_name or (row.quantity > 10 and row.quantity < 50)
 
 class TestUpdateData():
-    def test_update(self, connection, table_cookies, db_cookie_one):
+    def test_update(self, connection:Connection, table_cookies:table, db_cookie_one:dict):
         select_query = table_cookies.select()
         result_proxy = connection.execute(select_query)
         results = result_proxy.fetchall()
@@ -158,7 +164,7 @@ class TestUpdateData():
         assert dict_before == dict_after
 
 class TestDeletingData():
-    def test_delete(self, connection, table_cookies, db_cookie_one, db_cookie_array_two_element):
+    def test_delete(self, connection:Connection, table_cookies:table, db_cookie_one:dict, db_cookie_array_two_element:list[dict]):
         select_query = table_cookies.select()
         result_proxy = connection.execute(select_query)
         results = result_proxy.fetchall()
@@ -182,7 +188,7 @@ class TestDeletingData():
         assert list_of_id_before == list_of_id_after
 
 class TestJoinData():
-    def test_join(self, connection, db_orders_all, table_orders, table_users, table_cookies, table_line_items, db_user_one):
+    def test_join(self, connection:Connection, db_orders_all:list[dict], table_orders:table, table_users:table, table_cookies:table, table_line_items:table, db_user_one:dict):
         user_id_filter = db_user_one["user_id"]
         etalon_array_of_dict = []
         for order in db_orders_all:
@@ -213,7 +219,7 @@ class TestJoinData():
             assert etalon == db
 
 
-    def test_outer_join(self, connection, db_orders_all, table_orders, table_users, table_cookies, table_line_items, db_user_one):
+    def test_outer_join(self, connection:Connection, db_orders_all:list[dict], table_orders:table, table_users:table, table_cookies:table, table_line_items:table, db_user_one:dict):
         # It is also useful to get a count of orders by all users, including those who do not have
         # any present orders. To do this, we have to use the outerjoin() method, and it
         # requires a bit more care in the ordering of the join, as the table we use the outer
@@ -224,7 +230,7 @@ class TestJoinData():
         all_orders = all_orders.group_by(table_users.c.username).order_by(table_users.c.user_id)
         result = connection.execute(all_orders).fetchall()
         
-        dict_etalon = collections.defaultdict(int)
+        dict_etalon:dict[Any, Any] = collections.defaultdict(int)
         for order in db_orders_all:
             dict_etalon[order["user_id"]] = dict_etalon[order["user_id"]] + 1
         
@@ -236,10 +242,10 @@ class TestJoinData():
             assert dict_etalon[key_etalon] == dict_db[key_db]
 
 class TestAliasData():
-    def test_alias_simple(self, connection, table_emploee, db_employer_array_five):
+    def test_alias_simple(self, connection:Connection, table_emploee:table, db_employer_array_five:list[dict]):
         # Now suppose we want to select all the employees managed by an employee named
         # Fred.
-        array_dic_etalon = []
+        array_dic_etalon:list[str] = []
         for elem in db_employer_array_five:
             if elem["manager_id"] == db_employer_array_five[0]["id"]:
                 array_dic_etalon.append(elem["name"])
@@ -248,17 +254,17 @@ class TestAliasData():
             and_(table_emploee.c.manager_id==manager.c.id,
                 manager.c.name==db_employer_array_five[0]["name"]))
         result = connection.execute(sel_q).fetchall()
-        array_dic_db = []
-        for elem in result:
-            array_dic_db.append(elem.name)
+        array_dic_db:list[str] = []
+        for elem_db in result:
+            array_dic_db.append(elem_db.name)
         
         assert len(array_dic_etalon) == len(array_dic_db)
         for elem_etalon, elem_db in zip(array_dic_etalon, array_dic_db):
             assert elem_etalon == elem_db
 
 class TestGroupData():
-    def test_group_simple(self, connection, db_orders_all, table_users, table_orders):
-        array_dict_etalon = collections.defaultdict(int)
+    def test_group_simple(self, connection:Connection, db_orders_all:list[dict], table_users:table, table_orders:table):
+        array_dict_etalon:dict[Any, Any] = collections.defaultdict(int)
         for elem in db_orders_all:
             array_dict_etalon[elem.get("user_id")] = array_dict_etalon[elem.get("user_id")] + 1
         
@@ -269,9 +275,69 @@ class TestGroupData():
         result = connection.execute(all_orders).fetchall()
         
         array_dict_db = collections.defaultdict(int)
-        for elem in result:
-            array_dict_db[elem.user_id] = elem.count_order
+        for elem_db in result:
+            array_dict_db[elem_db.user_id] = elem_db.count_order
 
         for key_etalon, key_db in zip(sorted(array_dict_etalon.keys()), sorted(array_dict_etalon.keys())):
             assert key_etalon == key_db
             assert array_dict_etalon[key_etalon] == array_dict_db[key_db]
+
+class TestRawQuery():
+    def test_raw_query_one(self, connection:Connection, table_cookies:table, db_cookie_one:dict):
+        result = connection.execute("select * from cookies").fetchall()
+        assert len(result) == 1
+        object_out = get_dict_from_object(result[0])
+        assert object_out == db_cookie_one
+
+    def test_raw_query_partial(self, connection:Connection, table_cookies:table, db_cookie_array_two_element:list[dict]):
+        stmt = select([table_cookies]).where(text("cookie_name='peanut butter'"))
+        result = connection.execute(stmt).fetchall()
+        assert len(result) == 1
+        for elem in db_cookie_array_two_element:
+            if elem.get('cookie_name') == 'peanut butter':
+                object_out_dict = get_dict_from_object(result[0])
+                assert elem == object_out_dict
+                break
+
+class TestException():
+    def test_exception_attribut_error(self, connection:Connection, table_users:table, db_user_one:dict):
+        with pytest.raises(AttributeError):
+            sel_query = select([table_users.c.username])
+            result = connection.execute(sel_query)
+            for elem in result:
+                passw = elem.password
+
+    def test_exception_itegrity_error(self, connection:Connection, table_users:table, db_user_one:dict):
+        with pytest.raises(IntegrityError):
+            ins_query = insert(table_users).values(**db_user_one)
+            result = connection.execute(ins_query)
+
+class TestTransaction():
+    connection:Connection = None
+    table_line_items:table = None
+    table_cookies:table = None
+    table_orders:table = None
+
+    def ship_it(self, order_id:int):
+        success = True
+        s = select([self.table_line_items.c.cookie_id, self.table_line_items.c.quantity])
+        s = s.where(self.table_line_items.c.order_id == order_id)
+        transaction = self.connection.begin()
+        cookies_to_ship = self.connection.execute(s).fetchall()
+        try:
+            for cookie in cookies_to_ship:
+                u = update(self.table_cookies).where(self.table_cookies.c.cookie_id == cookie.cookie_id)
+                u = u.values(quantity = self.table_cookies.c.quantity-cookie.quantity)
+                result = self.connection.execute(u)
+            u = update(self.table_orders).where(self.table_orders.c.order_id == order_id)
+            u = u.values(shipped=True)
+            result = self.connection.execute(u)
+            transaction.commit()
+        except IntegrityError as error:
+            success = False
+            transaction.rollback()
+
+        return success
+    
+    def test_transaction_succes(self, connection:Connection):
+        pass
