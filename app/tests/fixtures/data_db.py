@@ -1,4 +1,7 @@
+from typing import Any, List
 import pytest
+from sqlalchemy.orm import Session
+from sqlalchemy import table
 
 @pytest.fixture(scope="function")
 def db_cookie_one(connection, table_cookies, dict_cookie_one):
@@ -10,6 +13,13 @@ def db_cookie_one(connection, table_cookies, dict_cookie_one):
     return dict_cookie_one
 
 @pytest.fixture(scope="function")
+def db_orm_cookie_one(session:Session, table_orm_cookies:table, dict_cookie_one:dict):
+    cookie = table_orm_cookies(**dict_cookie_one)
+    session.add(cookie)
+    session.commit()
+    return cookie
+
+@pytest.fixture(scope="function")
 def db_cookie_array_two_element(connection, table_cookies, array_of_two_cookie):
     for dict_cookie_one in array_of_two_cookie:
         ins = table_cookies.insert()
@@ -18,6 +28,17 @@ def db_cookie_array_two_element(connection, table_cookies, array_of_two_cookie):
         dict_cookie_one["cookie_id"] = result.inserted_primary_key.cookie_id
 
     return array_of_two_cookie
+
+@pytest.fixture(scope="function")
+def db_orm_cookie_array_two_element(session:Session, table_orm_cookies:table, array_of_two_cookie:list[dict])->list[Any]:
+    list_of_result:list[Any] = []
+    for elem in array_of_two_cookie:
+        cookie = table_orm_cookies(**elem)
+        session.add(cookie)
+        list_of_result.append(cookie)
+    session.commit()
+    return list_of_result
+
 
 @pytest.fixture(scope="function")
 def db_user_one(connection, table_users, dict_user_one):
@@ -122,3 +143,5 @@ def db_employer_array_five(connection, table_emploee, dict_emploee_array_five):
     result = connection.execute(ins_q, dict_emploee_array_five)
 
     return dict_emploee_array_five
+
+

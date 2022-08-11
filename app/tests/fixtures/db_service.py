@@ -1,8 +1,11 @@
 from datetime import datetime
 
 import pytest
-from sqlalchemy import (Boolean, CheckConstraint, Column, DateTime, ForeignKey, Integer, MetaData,
-                        Numeric, String, Table, create_engine, inspect)
+from sqlalchemy import (Boolean, CheckConstraint, Column, DateTime, ForeignKey,
+                        ForeignKeyConstraint, Integer, MetaData, Numeric,
+                        String, Table, create_engine, inspect)
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import backref, relationship, sessionmaker
 
 
 @pytest.fixture(scope="session")
@@ -12,6 +15,11 @@ def engine():
 @pytest.fixture(scope="session")
 def connection(engine):
     return engine.connect()
+
+@pytest.fixture(scope="session")
+def session(engine):
+    Session = sessionmaker(bind=engine)
+    return Session()
 
 @pytest.fixture(scope="session")
 def table_line_items(engine, table_orders, table_cookies):
@@ -28,6 +36,30 @@ def table_line_items(engine, table_orders, table_cookies):
     return line_items
 
 @pytest.fixture(scope="session")
+def table_orm_line_items(engine, table_orm_orders, table_orm_cookies):
+    Base = declarative_base()
+    class LineItem(Base):
+        __tablename__ = 'line_items'
+        line_item_id = Column(Integer(), primary_key=True)
+        order_id = Column(Integer(), ForeignKey('orders.order_id'))
+        cookie_id = Column(Integer(), ForeignKey('cookies.cookie_id'))
+        quantity = Column(Integer())
+        extended_cost = Column(Numeric(12, 2))
+        order = relationship("Order", backref=backref('line_items',
+        order_by=line_item_id))
+        cookie = relationship("Cookie", uselist=False)
+
+        def __repr__(self):
+            return "LineItems(order_id={self.order_id}, " \
+                    "cookie_id={self.cookie_id}, " \
+                    "quantity={self.quantity}, " \
+                    "extended_cost={self.extended_cost})".format(
+                    self=self)
+
+    Base.metadata.create_all(engine)
+    return LineItem
+
+@pytest.fixture(scope="session")
 def table_orders(engine, table_users):
     metadata = MetaData(bind=engine)
     orders = Table('orders', metadata,
@@ -38,6 +70,23 @@ def table_orders(engine, table_users):
     metadata.create_all(engine)
 
     return orders
+
+@pytest.fixture(scope="session")
+def table_orm_orders(engine, table_orm_users):
+    Base = declarative_base()
+    class Order(Base):
+        __tablename__ = 'orders'
+        order_id = Column(Integer(), primary_key=True)
+        user_id = Column(Integer(), ForeignKey('users.user_id'))
+        shipped = Column(Boolean(), default=False)
+        user = relationship("User", backref=backref('orders', order_by=order_id))
+
+        def __repr__(self):
+            return "Order(user_id={self.user_id}, " \
+                "shipped={self.shipped})".format(self=self)
+
+    Base.metadata.create_all(engine)
+    return Order
 
 @pytest.fixture(scope="session")
 def table_users(engine):
@@ -57,6 +106,28 @@ def table_users(engine):
     return users
 
 @pytest.fixture(scope="session")
+def table_orm_users(engine):
+    Base = declarative_base()
+    class User(Base):
+        __tablename__ = 'users'
+        user_id = Column(Integer(), primary_key=True)
+        username = Column(String(15), nullable=False, unique=True)
+        email_address = Column(String(255), nullable=False)
+        phone = Column(String(20), nullable=False)
+        password = Column(String(25), nullable=False)
+        created_on = Column(DateTime(), default=datetime.now)
+        updated_on = Column(DateTime(), default=datetime.now, onupdate=datetime.now)    
+
+        def __repr__(self):
+            return "User(username='{self.username}', " \
+                    "email_address='{self.email_address}', " \
+                    "phone='{self.phone}', " \
+                    "password='{self.password}')".format(self=self)
+
+    Base.metadata.create_all(engine)
+    return User
+
+@pytest.fixture(scope="session")
 def table_cookies(engine):
     metadata = MetaData(bind=engine)
     cookies = Table('cookies', metadata,
@@ -71,6 +142,35 @@ def table_cookies(engine):
     metadata.create_all(engine)
 
     return cookies
+
+@pytest.fixture(scope="session")
+def table_orm_cookies(engine):
+    Base = declarative_base()
+    class Cookie(Base):
+        __tablename__ = 'cookies'
+        cookie_id = Column(Integer(), primary_key=True)
+        cookie_name = Column(String(50), index=True)
+        cookie_recipe_url = Column(String(255))
+        cookie_sku = Column(String(55))
+        quantity = Column(Integer())
+        unit_cost = Column(Numeric(12, 2))
+
+        def __repr__(self):
+            return "Cookie(cookie_name='{self.cookie_name}', " \
+                "cookie_recipe_url='{self.cookie_recipe_url}', " \
+                "cookie_sku='{self.cookie_sku}', " \
+                "quantity={self.quantity}, " \
+                "unit_cost={self.unit_cost})".format(self=self)
+
+        def __eq__(self, other):
+            if type(self) != type(other):
+                return False
+
+            return all(self.__dict__.get(field_name) == other.__dict__.get(field_name) for field_name in self.__dict__)
+
+    Base.metadata.create_all(engine)
+
+    return Cookie
 
 @pytest.fixture(scope="session")
 def table_emploee(engine):
@@ -91,4 +191,16 @@ def clear_db(engine):
     insp = inspect(engine)
     for table_name in insp.get_table_names():
         engine.execute(f"DELETE FROM {table_name}")
+
+@pytest.fixture(scope="session")
+def table_orm_test_constrains(engine):
+    Base = declarative_base()
+    class SomeDataClass(Base):
+        __tablename__ = 'somedatatable'
+        __table_args__ = (ForeignKeyConstraint(['id'], ['other_table.id']), 
+                    CheckConstraint('unit_cost >= 0.00', 
+                    name='unit_cost_positive'))
+    Base.metadata.create_all(engine)
+
+    return Cookie
 
