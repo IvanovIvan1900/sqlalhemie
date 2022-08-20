@@ -189,4 +189,22 @@ class TestJoining():
         for data in query:
             assert {"username":db_orm_orders_one.user.username, "count_order":1} == get_dict_from_object(data)
 
+    def test_join_same_table(self, session:Session, table_orm_emploee:table, db_orm_employer_array_three:list[Any]):
+        query = session.query(table_orm_emploee).filter(table_orm_emploee.name=='Marsha').one()
+        for report in query.reports:
+            assert report.name == "Fred"
 
+class TestORMGrouping():
+
+    def test_grouping_and_aggregate(self, session:Session, table_orm_orders:table, table_orm_users:table, db_orm_orders_one:dict):
+        query = session.query(table_orm_users.username, func.count(table_orm_orders.order_id).label("count_order"))
+        query = query.outerjoin(table_orm_orders).group_by(table_orm_users.username)
+        for data in query:
+            assert {"username":db_orm_orders_one.user.username, "count_order":1} == get_dict_from_object(data)
+
+class TestOrmRawQuery():
+
+    def test_raw_query(self, session:Session, table_orm_users:table, db_orm_user_one:dict):
+        query = session.query(table_orm_users).filter(text(f"username='{db_orm_user_one.username}'"))
+        for elem in query:
+            assert elem.username == db_orm_user_one.username

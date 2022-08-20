@@ -205,3 +205,21 @@ def dict_emploee_array_five():
          "name": "worker three manager two",
         },
     ]
+
+
+@pytest.fixture(scope="function")
+def dict_orm_emploee_array_three(table_orm_emploee):
+    return [
+        {
+         "name":'Fred',
+         "manager_name": None,
+        },
+        {
+         "name":'Marsha',
+         "manager_name": "Fred",
+        },
+        {
+         "name":'Vasya',
+         "manager_name": None,
+        },
+    ]

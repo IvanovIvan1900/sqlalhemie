@@ -60,7 +60,7 @@ def table_orm_line_items(Base, engine, table_orm_orders, table_orm_cookies):
                     "extended_cost={self.extended_cost})".format(
                     self=self)
 
-        
+
 
     Base.metadata.create_all(engine)
     return LineItem
@@ -200,6 +200,21 @@ def table_emploee(engine):
 
     return employee_table
 
+
+@pytest.fixture(scope="session")
+def table_orm_emploee(Base, engine):
+    class Employee(Base):
+        __tablename__ = 'employees'
+        id = Column(Integer(), primary_key=True)
+        manager_id = Column(Integer(), ForeignKey('employees.id'))
+        name = Column(String(255), nullable=False)
+        manager = relationship("Employee", backref=backref('reports'),
+                remote_side=[id])
+
+    Base.metadata.create_all(engine)
+
+    return Employee
+    
 @pytest.fixture(autouse=True)
 def clear_db(engine):
 # It may be enough to disable a foreign key checks just for the current session:

@@ -183,4 +183,20 @@ def db_employer_array_five(connection, table_emploee, dict_emploee_array_five):
 
     return dict_emploee_array_five
 
+@pytest.fixture(scope="function")
+def db_orm_employer_array_three(session:Session, table_orm_emploee:DeclarativeMeta, dict_orm_emploee_array_three:list[dict]):
+    dic_name_to_object = {}
+    for elem in dict_orm_emploee_array_three:
+        dic_name_to_object[elem["name"]] = table_orm_emploee(name=elem["name"])
+        session.add(dic_name_to_object[elem["name"]])
+    for elem in dict_orm_emploee_array_three:
+        if elem["manager_name"] is not None:
+            dic_name_to_object[elem["name"]].reports.append(dic_name_to_object[elem["manager_name"]])
+
+    session.commit()
+
+
+
+
+
 
