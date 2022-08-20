@@ -95,8 +95,8 @@ class TestORMQueryingData():
         assert len(db_orm_cookie_array_two_element) == rec_count.inventory_count
 
     def test_filter(self, session: Session, table_orm_cookies:table, db_orm_cookie_array_two_element:list[dict]):
-        for elem in session.query(table_orm_cookies).filter(table_orm_cookies.cookie_name == 'chocolate chip'):
-            assert elem.cookie_name == 'chocolate chip'
+        for elem in session.query(table_orm_cookies).filter(table_orm_cookies.cookie_name == 'oatmeal raisin'):
+            assert elem.cookie_name == 'oatmeal raisin'
 
     def test_operator(self, session: Session, table_orm_cookies:table, db_orm_cookie_array_two_element:list[dict]):
         list_of_cookie_form_db = session.query(table_orm_cookies.cookie_name,
@@ -112,8 +112,81 @@ class TestORMQueryingData():
         query = session.query(table_orm_cookies).filter(
                     or_(
                     table_orm_cookies.quantity.between(10, 50),
-                    table_orm_cookies.cookie_name.contains('chip')))
+                    table_orm_cookies.cookie_name.contains('raisin')))
         for elem in query:
-            assert (elem.quantity > 10 or elem.quantity < 50) or 'chip' in elem.name
+            assert (elem.quantity > 10 or elem.quantity < 50) or 'raisin' in elem.name
 
-    
+class TestUpdate():
+
+    def test_update_vai_object(self, session: Session, table_orm_cookies:table, db_orm_cookie_array_two_element:list[dict]):
+        query = session.query(table_orm_cookies)
+        cc_cookie = query.filter(table_orm_cookies.cookie_name == "oatmeal raisin").first()
+        quantiti_before = cc_cookie.quantity
+        cc_cookie.quantity = cc_cookie.quantity + 120
+        session.commit()
+
+        cc_cookie = session.query(table_orm_cookies).filter(table_orm_cookies.cookie_name == "oatmeal raisin").first()
+        assert cc_cookie.quantity == quantiti_before + 120
+
+    def test_update_via_query(self, session: Session, table_orm_cookies:table, db_orm_cookie_array_two_element:list[dict]):
+        cc_cookie = session.query(table_orm_cookies).filter(table_orm_cookies.cookie_name == "oatmeal raisin").first()
+        quantiti_before = cc_cookie.quantity
+
+        query = session.query(table_orm_cookies)
+        query = query.filter(table_orm_cookies.cookie_name == "oatmeal raisin")
+        query.update({table_orm_cookies.quantity: table_orm_cookies.quantity - 20})
+        cc_cookie = query.first()
+
+        cc_cookie = session.query(table_orm_cookies).filter(table_orm_cookies.cookie_name == "oatmeal raisin").first()
+        assert cc_cookie.quantity == quantiti_before - 20
+
+class TestDeletingData():
+
+    def test_deleting_data_via_object(self, session: Session, table_orm_cookies:table, db_orm_cookie_array_two_element:list[dict]):
+        query = session.query(table_orm_cookies)
+        query = query.filter(table_orm_cookies.cookie_name == "oatmeal raisin")
+        dcc_cookie = query.one()
+        session.delete(dcc_cookie)
+        session.commit()
+        dcc_cookie = query.first()
+
+        assert dcc_cookie is None
+
+    def test_deleting_data_via_query(self, session: Session, table_orm_cookies:table, db_orm_cookie_array_two_element:list[dict]):
+        query = session.query(table_orm_cookies)
+        query = query.filter(table_orm_cookies.cookie_name == "oatmeal raisin")
+        query.delete()
+        mol_cookie = query.first()
+
+        assert mol_cookie is None
+
+class TestJoining():
+
+    def test_join_simple(self, session:Session, table_orm_orders:table, table_orm_users:table, table_orm_cookies:table,
+            table_orm_line_items:table,  db_orm_orders_one:dict):
+        query = session.query(table_orm_orders.order_id, table_orm_users.username, table_orm_users.phone,
+                table_orm_cookies.cookie_name, table_orm_line_items.quantity, table_orm_line_items.extended_cost)
+        query = query.join(table_orm_users).join(table_orm_line_items).join(table_orm_cookies)
+        results = query.filter(table_orm_users.username == db_orm_orders_one.user.username).all()
+
+        list_of_dic_of_result_etalon = []
+        for line in db_orm_orders_one.line_items:
+            dic_of_result_etalon = {}
+            dic_of_result_etalon["order_id"] = db_orm_orders_one.order_id
+            dic_of_result_etalon["username"] = db_orm_orders_one.user.username
+            dic_of_result_etalon["phone"] = db_orm_orders_one.user.phone
+            dic_of_result_etalon["cookie_name"] = line.cookie.cookie_name
+            dic_of_result_etalon["quantity"] = line.quantity
+            dic_of_result_etalon["extended_cost"] = line.extended_cost
+            list_of_dic_of_result_etalon.append(dic_of_result_etalon)
+
+        for etalon, db in zip(results, list_of_dic_of_result_etalon):
+            assert get_dict_from_object(etalon) == db
+
+    def test_outher_join(self, session:Session, table_orm_orders:table, table_orm_users:table, db_orm_orders_one:dict):
+        query = session.query(table_orm_users.username, func.count(table_orm_orders.order_id).label("count_order"))
+        query = query.outerjoin(table_orm_orders).group_by(table_orm_users.username)
+        for data in query:
+            assert {"username":db_orm_orders_one.user.username, "count_order":1} == get_dict_from_object(data)
+
+

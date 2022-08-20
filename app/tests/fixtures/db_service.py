@@ -17,6 +17,11 @@ def connection(engine):
     return engine.connect()
 
 @pytest.fixture(scope="session")
+def Base():
+    return declarative_base()
+
+
+@pytest.fixture(scope="session")
 def session(engine):
     Session = sessionmaker(bind=engine)
     return Session()
@@ -36,8 +41,7 @@ def table_line_items(engine, table_orders, table_cookies):
     return line_items
 
 @pytest.fixture(scope="session")
-def table_orm_line_items(engine, table_orm_orders, table_orm_cookies):
-    Base = declarative_base()
+def table_orm_line_items(Base, engine, table_orm_orders, table_orm_cookies):
     class LineItem(Base):
         __tablename__ = 'line_items'
         line_item_id = Column(Integer(), primary_key=True)
@@ -56,6 +60,8 @@ def table_orm_line_items(engine, table_orm_orders, table_orm_cookies):
                     "extended_cost={self.extended_cost})".format(
                     self=self)
 
+        
+
     Base.metadata.create_all(engine)
     return LineItem
 
@@ -72,8 +78,7 @@ def table_orders(engine, table_users):
     return orders
 
 @pytest.fixture(scope="session")
-def table_orm_orders(engine, table_orm_users):
-    Base = declarative_base()
+def table_orm_orders(Base, engine, table_orm_users):
     class Order(Base):
         __tablename__ = 'orders'
         order_id = Column(Integer(), primary_key=True)
@@ -84,6 +89,17 @@ def table_orm_orders(engine, table_orm_users):
         def __repr__(self):
             return "Order(user_id={self.user_id}, " \
                 "shipped={self.shipped})".format(self=self)
+
+        @classmethod
+        def create_from_dict(cls, dict_data:dict, table_orm_line_items):
+            order = cls()
+            order.user = dict_data["user"]
+            for elem in dict_data["line_items"]:
+                line_item = table_orm_line_items()
+                line_item.cookie = elem["cookie"]
+                order.line_items.append(line_item)
+
+            return order
 
     Base.metadata.create_all(engine)
     return Order
@@ -106,13 +122,13 @@ def table_users(engine):
     return users
 
 @pytest.fixture(scope="session")
-def table_orm_users(engine):
-    Base = declarative_base()
+def table_orm_users(Base, engine):
     class User(Base):
         __tablename__ = 'users'
         user_id = Column(Integer(), primary_key=True)
         username = Column(String(15), nullable=False, unique=True)
         email_address = Column(String(255), nullable=False)
+        customer_number = Column(Integer())
         phone = Column(String(20), nullable=False)
         password = Column(String(25), nullable=False)
         created_on = Column(DateTime(), default=datetime.now)
@@ -144,8 +160,7 @@ def table_cookies(engine):
     return cookies
 
 @pytest.fixture(scope="session")
-def table_orm_cookies(engine):
-    Base = declarative_base()
+def table_orm_cookies(Base, engine):
     class Cookie(Base):
         __tablename__ = 'cookies'
         cookie_id = Column(Integer(), primary_key=True)
@@ -167,6 +182,7 @@ def table_orm_cookies(engine):
                 return False
 
             return all(self.__dict__.get(field_name) == other.__dict__.get(field_name) for field_name in self.__dict__)
+
 
     Base.metadata.create_all(engine)
 

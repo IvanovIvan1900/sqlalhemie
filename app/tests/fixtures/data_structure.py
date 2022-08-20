@@ -54,7 +54,7 @@ def dict_user_two()->dict:
 @pytest.fixture(scope="function")
 def dict_orders_one(db_user_one, db_cookie_one, db_cookie_array_two_element)->dict:
     return {
-        "user_id":db_user_one["user_id"], 
+        "user_id":db_user_one["user_id"],
         "line_items":[
             {
                 "cookie_id":db_cookie_one["cookie_id"],
@@ -68,6 +68,29 @@ def dict_orders_one(db_user_one, db_cookie_one, db_cookie_array_two_element)->di
             },
             {
                 "cookie_id":db_cookie_array_two_element[1]["cookie_id"],
+                "quantity":150,
+                "extended_cost":2300,
+            },
+        ]
+    }
+
+@pytest.fixture(scope="function")
+def dict_orm_orders_one(db_orm_user_one, db_orm_cookie_one, db_orm_cookie_array_two_element)->dict:
+    return {
+        "user":db_orm_user_one,
+        "line_items":[
+            {
+                "cookie":db_orm_cookie_one,
+                "quantity":10,
+                "extended_cost":150,
+            },
+            {
+                "cookie":db_orm_cookie_array_two_element[0],
+                "quantity":2,
+                "extended_cost":10,
+            },
+            {
+                "cookie":db_orm_cookie_array_two_element[1],
                 "quantity":150,
                 "extended_cost":2300,
             },
@@ -105,6 +128,20 @@ def dict_orders_succes(db_user_one:dict,db_cookie_one:dict)->dict:
         ]
     }
 
+
+@pytest.fixture(scope="function")
+def dict_orm_orders_succes(db_orm_user_one ,db_orm_cookie_one)->dict:
+    return {
+        "user":db_orm_user_one,
+        "line_items":[
+            {
+                "cookie_id":db_orm_cookie_one,
+                "quantity":db_orm_cookie_one.quantity-1,
+                "extended_cost":150,
+            }
+        ]
+    }
+
 @pytest.fixture(scope="function")
 def dict_orders_not_succes(db_user_one:dict,db_cookie_one:dict)->dict:
     return {
@@ -113,6 +150,19 @@ def dict_orders_not_succes(db_user_one:dict,db_cookie_one:dict)->dict:
             {
                 "cookie_id":db_cookie_one["cookie_id"],
                 "quantity":db_cookie_one["quantity"]+1,
+                "extended_cost":150,
+            }
+        ]
+    }
+
+@pytest.fixture(scope="function")
+def dict_orm_orders_not_succes(db_orm_user_one ,db_orm_cookie_one)->dict:
+    return {
+        "user":db_orm_user_one,
+        "line_items":[
+            {
+                "cookie_id":db_orm_cookie_one,
+                "quantity":db_orm_cookie_one.quantity+1,
                 "extended_cost":150,
             }
         ]

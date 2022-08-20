@@ -2,6 +2,7 @@ from typing import Any, List
 import pytest
 from sqlalchemy.orm import Session
 from sqlalchemy import table
+from sqlalchemy.orm.decl_api import DeclarativeMeta
 
 @pytest.fixture(scope="function")
 def db_cookie_one(connection, table_cookies, dict_cookie_one):
@@ -13,7 +14,7 @@ def db_cookie_one(connection, table_cookies, dict_cookie_one):
     return dict_cookie_one
 
 @pytest.fixture(scope="function")
-def db_orm_cookie_one(session:Session, table_orm_cookies:table, dict_cookie_one:dict):
+def db_orm_cookie_one(session:Session, table_orm_cookies:DeclarativeMeta, dict_cookie_one:dict):
     cookie = table_orm_cookies(**dict_cookie_one)
     session.add(cookie)
     session.commit()
@@ -30,7 +31,7 @@ def db_cookie_array_two_element(connection, table_cookies, array_of_two_cookie):
     return array_of_two_cookie
 
 @pytest.fixture(scope="function")
-def db_orm_cookie_array_two_element(session:Session, table_orm_cookies:table, array_of_two_cookie:list[dict])->list[Any]:
+def db_orm_cookie_array_two_element(session:Session, table_orm_cookies:DeclarativeMeta, array_of_two_cookie:list[dict])->list[Any]:
     list_of_result:list[Any] = []
     for elem in array_of_two_cookie:
         cookie = table_orm_cookies(**elem)
@@ -50,6 +51,13 @@ def db_user_one(connection, table_users, dict_user_one):
     return dict_user_one
 
 @pytest.fixture(scope="function")
+def db_orm_user_one(session:Session, table_orm_users:DeclarativeMeta, dict_user_one:dict):
+    user = table_orm_users(**dict_user_one)
+    session.add(user)
+    session.commit()
+    return user
+
+@pytest.fixture(scope="function")
 def db_user_two(connection, table_users, dict_user_two):
     dict_user_two.pop("user_id", None)
     ins_q = table_users.insert()
@@ -57,6 +65,13 @@ def db_user_two(connection, table_users, dict_user_two):
     dict_user_two["user_id"] = result.inserted_primary_key.user_id
 
     return dict_user_two
+
+@pytest.fixture(scope="function")
+def db_orm_user_two(session:Session, table_orm_users:DeclarativeMeta, dict_user_two:dict):
+    user = table_orm_users(**dict_user_two)
+    session.add(user)
+    session.commit()
+    return user
 
 @pytest.fixture(scope="function")
 def db_orders_one(connection, table_line_items , dict_orders_one, table_orders):
@@ -74,6 +89,14 @@ def db_orders_one(connection, table_line_items , dict_orders_one, table_orders):
     return dict_orders_one
 
 @pytest.fixture(scope="function")
+def db_orm_orders_one(session: Session, table_orm_line_items:DeclarativeMeta , dict_orm_orders_one:dict, table_orm_orders:DeclarativeMeta):
+    order = table_orm_orders.create_from_dict(dict_orm_orders_one, table_orm_line_items)
+    session.add(order)
+    session.commit()
+
+    return order
+
+@pytest.fixture(scope="function")
 def db_orders_succes(connection, table_line_items , dict_orders_succes, table_orders):
     dict_orders_succes.pop("order_id", None)
     ins_q = table_orders.insert()
@@ -89,6 +112,14 @@ def db_orders_succes(connection, table_line_items , dict_orders_succes, table_or
     return dict_orders_succes
 
 @pytest.fixture(scope="function")
+def db_orm_orders_succes(session:Session, table_orm_line_items:DeclarativeMeta , dict_orm_orders_succes, table_orm_orders:DeclarativeMeta):
+    order = table_orm_orders.create_from_dict(dict_orm_orders_succes, table_orm_line_items)
+    session.add(order)
+    session.commit()
+
+    return order
+
+@pytest.fixture(scope="function")
 def db_orders_not_succes(connection, table_line_items , dict_orders_not_succes, table_orders):
     dict_orders_not_succes.pop("order_id", None)
     ins_q = table_orders.insert()
@@ -100,8 +131,16 @@ def db_orders_not_succes(connection, table_line_items , dict_orders_not_succes, 
         elem.pop("line_items_id", None)
         result = connection.execute(ins_line_q, [elem])
         elem["line_items_id"] = result.inserted_primary_key.line_items_id
-    
+
     return dict_orders_not_succes
+
+@pytest.fixture(scope="function")
+def db_orm_orders_not_succes(session:Session, table_orm_line_items:DeclarativeMeta , dict_orm_orders_not_succes, table_orm_orders:DeclarativeMeta):
+    order = table_orm_orders.create_from_dict(dict_orm_orders_not_succes, table_orm_line_items)
+    session.add(order)
+    session.commit()
+
+    return order
 
 @pytest.fixture(scope="function")
 def db_orders_two(connection, table_line_items, dict_orders_two, table_orders):
