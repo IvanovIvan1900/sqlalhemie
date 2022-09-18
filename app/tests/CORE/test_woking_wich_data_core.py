@@ -16,16 +16,13 @@ def get_dict_from_object(result_items):
 class TestInsertion():
     def test_insert_cookie_one_method(self, connection:Connection, table_cookies:table, dict_cookie_one:dict):
         ins = table_cookies.insert().values(**dict_cookie_one)
-        # print(str(ins))
         result = connection.execute(ins)
         assert result.rowcount == 1
 
     def test_insert_cookie_two_method(self, connection:Connection, table_cookies:table, dict_cookie_one:dict):
         ins = insert(table_cookies).values(**dict_cookie_one)
-        # print(str(ins))
         result = connection.execute(ins)
         assert result.rowcount == 1
-        # a = 4
 
     def test_insert_many(self, connection:Connection ,table_cookies:table, array_of_two_cookie:list[dict]):
         ins = table_cookies.insert()

@@ -8,6 +8,7 @@ authors = ["Alex <ivanovivan159753@yandex.ru>"]
 python = "^3.10"
 pytest = "^7.1.2"
 SQLAlchemy = "^1.4.38"
+psycopg2-binary = "^2.9.3"
 
 [tool.poetry.dev-dependencies]
 pylint = "^2.14.3"

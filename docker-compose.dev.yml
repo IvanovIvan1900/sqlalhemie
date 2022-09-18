@@ -1,0 +1,63 @@
+version: "3.9"
+
+volumes:
+  volum_alchemie_pg_dev:
+    driver: local
+    driver_opts:
+      type: none
+      device: /home/dav/PythonWorkDir/LearnProject/SqlAlchemie/db_data/db/
+      o: bind
+  # volum_yandex_pg_admin_dev:
+  #   driver: local
+  #   driver_opts:
+  #     type: none
+  #     device: /home/dav/PythonWorkDir/LearnProject/YandesShool_Rest/db_data/pgadmin/
+  #     o: bind
+
+services:
+  pg_alchemie_test_dev:
+    container_name: postgres_container_alchemie_test
+    image: postgres:14
+    environment:
+      POSTGRES_DB: "alchemie_test"
+      POSTGRES_USER: "alchemie_test"
+      POSTGRES_PASSWORD: "test"
+      PGDATA: "/var/lib/postgresql/data/pgdata"
+    volumes:
+      - volum_alchemie_pg_dev:/var/lib/postgresql/data
+    ports:
+      - "5456:5432"
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 1G
+
+    networks:
+      - alchemie_test_dev
+  # pgadmin_yandex_test:
+  #   container_name: pgadmin_container_yandex_test
+  #   image: dpage/pgadmin4:latest
+  #   environment:
+  #     PGADMIN_DEFAULT_EMAIL: "habrpguser@habr.com"
+  #     PGADMIN_DEFAULT_PASSWORD: "656050"
+  #     PGADMIN_CONFIG_SERVER_MODE: "False"
+  #   volumes:
+  #     - volum_yandex_pg_admin_dev:/var/lib/pgadmin
+  #   ports:
+  #     - "5051:80"
+  #   restart: unless-stopped
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         cpus: '0.5'
+  #         memory: 1G
+  #   networks:
+  #     - yandex_test_dev
+  #   depends_on:
+  #     - pg_yandex_test_dev
+
+networks:
+  alchemie_test_dev:
+    driver: bridge
