@@ -1,6 +1,6 @@
-import collections
 from operator import attrgetter, itemgetter
 from typing import Any
+from unittest.mock import ANY
 
 import pytest
 from sqlalchemy import (Numeric, and_, cast, delete, desc, func, insert,
@@ -50,6 +50,16 @@ class TestORMInsertion():
         session.bulk_save_objects([cookie_one,cookie_two])
         session.commit()
         assert cookie_one.cookie_id is  None
+
+    def test_insertions_field_wich_new_date(self, session:Session, table_orm_users:table, dict_user_one:dict):
+        user_one = table_orm_users(**dict_user_one)
+        session.add(user_one)
+        session.commit()
+
+        assert user_one.user_id is not None
+        assert user_one.created_on is not None
+        assert user_one.updated_on is not None
+
 
 class TestORMQueryingData():
     def test_select(self, session: Session, table_orm_cookies:table, db_orm_cookie_array_two_element:list[dict]):
@@ -208,3 +218,30 @@ class TestOrmRawQuery():
         query = session.query(table_orm_users).filter(text(f"username='{db_orm_user_one.username}'"))
         for elem in query:
             assert elem.username == db_orm_user_one.username
+
+    def test_raw_query_wich_text_and_execute(self, engine, session:Session, table_orm_users_test_raw:table, dict_user_one:dict)->None:
+        with engine.connect() as con:
+            statement = text("""INSERT INTO users(customer_number, username, email_address, phone, password) VALUES(:customer_number, :username, :email_address, :phone, :password)""")
+            con.execute(statement, **dict_user_one)
+        dict_user_one["user_id"] = ANY
+        dict_user_one["created_on"] = None
+        dict_user_one["created_on_bd"] = ANY
+        dict_user_one["updated_on"] = None
+        dict_user_one["customer_number"] = int(dict_user_one["customer_number"])
+        with engine.connect() as con:
+
+            rs_array = con.execute('SELECT * FROM users').all()
+
+            assert 1 == len(rs_array)
+            dict_data = get_dict_from_object(rs_array[0])
+            assert dict_user_one == dict_data
+
+            # ВАЖНО, отрабатывает только та, что сделана через server_default
+            assert dict_data["created_on"] is None
+            assert dict_data["updated_on"] is None
+            assert dict_data["created_on_bd"] is not None
+
+
+class TestMock():
+
+    pass

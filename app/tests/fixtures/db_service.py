@@ -1,4 +1,5 @@
 from datetime import datetime
+import sys
 
 import pytest
 from sqlalchemy import (Boolean, CheckConstraint, Column, DateTime, ForeignKey,
@@ -6,10 +7,20 @@ from sqlalchemy import (Boolean, CheckConstraint, Column, DateTime, ForeignKey,
                         String, Table, create_engine, inspect)
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import backref, relationship, sessionmaker
+from sqlalchemy.sql import func
+import logging
 
 
 @pytest.fixture(scope="session")
 def engine():
+    logging.basicConfig()
+    root = logging.getLogger('sqlalchemy.engine')
+    root.setLevel(logging.DEBUG)
+    handler = logging.StreamHandler(sys.stdout)
+    handler.setLevel(logging.DEBUG)
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    handler.setFormatter(formatter)
+    root.addHandler(handler)    
     return  create_engine('sqlite:///:memory:')
 
 @pytest.fixture(scope="session")
@@ -125,6 +136,7 @@ def table_users(engine):
 def table_orm_users(Base, engine):
     class User(Base):
         __tablename__ = 'users'
+        __mapper_args__ = {'polymorphic_identity': 'users'}
         user_id = Column(Integer(), primary_key=True)
         username = Column(String(15), nullable=False, unique=True)
         email_address = Column(String(255), nullable=False)
@@ -132,7 +144,7 @@ def table_orm_users(Base, engine):
         phone = Column(String(20), nullable=False)
         password = Column(String(25), nullable=False)
         created_on = Column(DateTime(), default=datetime.now)
-        updated_on = Column(DateTime(), default=datetime.now, onupdate=datetime.now)    
+        updated_on = Column(DateTime(), default=datetime.now, onupdate=datetime.now)
 
         def __repr__(self):
             return "User(username='{self.username}', " \
@@ -140,8 +152,24 @@ def table_orm_users(Base, engine):
                     "phone='{self.phone}', " \
                     "password='{self.password}')".format(self=self)
 
+        def __eq__(self, other):
+                if isinstance(other, self.__class__):
+                    return self.__dict__ == other.__dict__
+                else:
+                    return False
     Base.metadata.create_all(engine)
     return User
+
+@pytest.fixture(scope="session")
+def table_orm_users_test_raw(Base, engine, table_orm_users):
+    class User_wich_autodefault(table_orm_users):
+        __mapper_args__ = {'polymorphic_identity': 'users_addit'}
+        created_on_bd = Column(DateTime(timezone=True), server_default=func.now())
+
+    Base.metadata.drop_all(engine)
+    Base.metadata.create_all(engine)
+    return User_wich_autodefault
+
 
 @pytest.fixture(scope="session")
 def table_cookies(engine):
@@ -233,5 +261,5 @@ def table_orm_test_constrains(engine):
                     name='unit_cost_positive'))
     Base.metadata.create_all(engine)
 
-    return Cookie
+    return SomeDataClass
 
