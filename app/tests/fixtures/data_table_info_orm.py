@@ -149,13 +149,13 @@ def table_orm_emploee(Base, engine):
 
     return Employee
 
-@pytest.fixture(autouse=True)
-def clear_db(engine):
-# It may be enough to disable a foreign key checks just for the current session:
-# con.execute('SET SESSION FOREIGN_KEY_CHECKS = ON')
-    insp = inspect(engine)
-    for table_name in insp.get_table_names():
-        engine.execute(f"DELETE FROM {table_name}")
+# @pytest.fixture(autouse=True)
+# def clear_db(engine):
+# # It may be enough to disable a foreign key checks just for the current session:
+# # con.execute('SET SESSION FOREIGN_KEY_CHECKS = ON')
+#     insp = inspect(engine)
+#     for table_name in insp.get_table_names():
+#         engine.execute(f"DELETE FROM {table_name}")
 
 @pytest.fixture(scope="session")
 def table_orm_test_constrains(engine):

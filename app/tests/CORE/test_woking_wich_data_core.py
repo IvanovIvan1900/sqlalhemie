@@ -10,8 +10,8 @@ from sqlalchemy.exc import IntegrityError
 
 
 def get_dict_from_object(result_items):
-    return dict(result_items._mapping.items())
-
+    # return dict(result_items._mapping.items()) это для версии 1.4
+    return {elem[0]: elem[1] for elem in result_items.items()}
 
 class TestInsertion():
     def test_insert_cookie_one_method(self, connection:Connection, table_cookies:table, dict_cookie_one:dict):
@@ -39,7 +39,7 @@ class TestQueryingData():
         results = result_proxy.fetchall()
         assert len(results) == 1
         # dict_cookie_one["cookie_id"] = results[0].cookie_id
-        dict_from_db = dict(results[0]._mapping.items())
+        dict_from_db = get_dict_from_object(results[0])
         assert dict_cookie_one == dict_from_db
 
     def test_query_two(self, connection:Connection, table_cookies:table, db_cookie_one:dict, dict_cookie_one:dict):
@@ -48,7 +48,7 @@ class TestQueryingData():
         results = result_proxy.fetchall()
         assert len(results) == 1
         # dict_cookie_one["cookie_id"] = results[0].cookie_id
-        dict_from_db = dict(results[0]._mapping.items())
+        dict_from_db = get_dict_from_object(results[0])
         assert dict_cookie_one == dict_from_db
 
     def test_result_proxy(self, connection:Connection, table_cookies:table, db_cookie_array_two_element:list[dict]):
@@ -233,7 +233,7 @@ class TestJoinData():
         
         dict_db = collections.defaultdict(int)
         for elem in result:
-            dict_db[elem.user_id] = elem.count
+            dict_db[elem.user_id] = elem[1]
         for key_etalon, key_db in zip(sorted(dict_etalon.keys()), sorted(dict_db.keys())):
             assert key_etalon == key_db
             assert dict_etalon[key_etalon] == dict_db[key_db]

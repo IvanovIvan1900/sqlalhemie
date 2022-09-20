@@ -97,3 +97,11 @@ def table_emploee(engine):
 
     metadata.create_all(engine)
     return employee_table
+
+@pytest.fixture(scope="function", autouse=True)
+def clear_db(engine):
+# It may be enough to disable a foreign key checks just for the current session:
+# con.execute('SET SESSION FOREIGN_KEY_CHECKS = ON')
+    insp = inspect(engine)
+    for table_name in insp.get_table_names():
+        engine.execute(f"DELETE FROM {table_name}")

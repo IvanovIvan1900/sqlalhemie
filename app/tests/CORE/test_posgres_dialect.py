@@ -9,6 +9,9 @@ from sqlalchemy.dialects.postgresql import insert
 def get_dict_from_object(result_items):
     return dict(result_items._mapping.items())
 
+def get_dict_from_row_proxy(row):
+    return {elem[0]: elem[1] for elem in row.items()}
+
 class TestRetriviend():
 
     def test_insert_cookie_and_return_inserted_values(self, connection_postgres:Connection, table_cookies_postgres:table, dict_cookie_one:dict):
@@ -39,9 +42,9 @@ class TestOnConflict():
         connection_postgres.execute(stmt_ins, [array_of_two_cookie[0]])
         connection_postgres.execute(stmt_ins, new_array)
 
-        stmt_get = select(table_cookies_postgres)
+        stmt_get = select(table_cookies_postgres.c)
         returnin_values = connection_postgres.execute(stmt_get)
-        returnin_array = [get_dict_from_object(elem) for elem in returnin_values]
+        returnin_array = [get_dict_from_row_proxy(elem) for elem in returnin_values]
         new_array[0]["quantity"] = new_array[0]["quantity"] - 50
         new_array[0]["cookie_id"] = ANY
         new_array[1]["cookie_id"] = ANY
@@ -66,9 +69,9 @@ class TestOnConflict():
         connection_postgres.execute(stmt_ins, [array_of_two_cookie[0]])
         connection_postgres.execute(stmt_ins, new_array)
 
-        stmt_get = select(table_cookies_postgres)
+        stmt_get = select(table_cookies_postgres.c)
         returnin_values = connection_postgres.execute(stmt_get)
-        returnin_array = [get_dict_from_object(elem) for elem in returnin_values]
+        returnin_array = [get_dict_from_row_proxy(elem) for elem in returnin_values]
         new_array[0]["cookie_id"] = ANY
         new_array[1]["cookie_id"] = ANY
         assert len(new_array) == len(returnin_array)

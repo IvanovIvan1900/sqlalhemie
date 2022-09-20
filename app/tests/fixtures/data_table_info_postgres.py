@@ -13,7 +13,11 @@ from sqlalchemy.sql import func
 
 
 @pytest.fixture(scope="session")
-def engine_postgres():
+def conn_url():
+    return 'postgresql+psycopg2://alchemie_test:test@127.0.0.1:5456/alchemie_test'
+
+@pytest.fixture(scope="session")
+def engine_postgres(conn_url):
     logging.basicConfig()
     root = logging.getLogger('sqlalchemy.engine')
     root.setLevel(logging.DEBUG)
@@ -22,7 +26,10 @@ def engine_postgres():
     formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     handler.setFormatter(formatter)
     root.addHandler(handler)
-    return  create_engine('postgresql+psycopg2://alchemie_test:test@127.0.0.1:5456/alchemie_test')
+    engine_postgres =  create_engine(conn_url)
+    drop_the_table(engine_postgres)
+    # drop_the_table(engine_postgres_=engine_postgres)
+    return engine_postgres
 
 @pytest.fixture(scope="session")
 def connection_postgres(engine_postgres):
@@ -65,9 +72,13 @@ def table_cookies_postgres(engine_postgres):
     return cookies
 
 @pytest.fixture(autouse=True)
-def clear_db(engine_postgres):
+def clear_db_pg(engine_postgres):
 # It may be enough to disable a foreign key checks just for the current session:
 # con.execute('SET SESSION FOREIGN_KEY_CHECKS = ON')
     insp = inspect(engine_postgres)
     for table_name in insp.get_table_names():
         engine_postgres.execute(f"DELETE FROM {table_name}")
+
+def drop_the_table(engine_postgres_):
+    engine_postgres_.execute("DROP SCHEMA public CASCADE;")
+    engine_postgres_.execute("CREATE SCHEMA public;")

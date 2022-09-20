@@ -11,7 +11,8 @@ from sqlalchemy.orm import Session
 
 
 def get_dict_from_object(result_items):
-    return dict(result_items._mapping.items())
+    # return dict(result_items._mapping.items())
+    return {elem[0]: elem[1] for elem in result_items.items()}
 
 def get_session_state(db_object: Any) -> dict[str, bool]:
     insp = inspect(db_object)
@@ -191,13 +192,13 @@ class TestJoining():
             list_of_dic_of_result_etalon.append(dic_of_result_etalon)
 
         for etalon, db in zip(results, list_of_dic_of_result_etalon):
-            assert get_dict_from_object(etalon) == db
+            assert etalon._asdict() == db
 
     def test_outher_join(self, session:Session, table_orm_orders:table, table_orm_users:table, db_orm_orders_one:dict):
         query = session.query(table_orm_users.username, func.count(table_orm_orders.order_id).label("count_order"))
         query = query.outerjoin(table_orm_orders).group_by(table_orm_users.username)
         for data in query:
-            assert {"username":db_orm_orders_one.user.username, "count_order":1} == get_dict_from_object(data)
+            assert {"username":db_orm_orders_one.user.username, "count_order":1} == data._asdict()
 
     def test_join_same_table(self, session:Session, table_orm_emploee:table, db_orm_employer_array_three:list[Any]):
         query = session.query(table_orm_emploee).filter(table_orm_emploee.name=='Marsha').one()
@@ -210,7 +211,7 @@ class TestORMGrouping():
         query = session.query(table_orm_users.username, func.count(table_orm_orders.order_id).label("count_order"))
         query = query.outerjoin(table_orm_orders).group_by(table_orm_users.username)
         for data in query:
-            assert {"username":db_orm_orders_one.user.username, "count_order":1} == get_dict_from_object(data)
+            assert {"username":db_orm_orders_one.user.username, "count_order":1} == data._asdict()
 
 class TestOrmRawQuery():
 
@@ -230,10 +231,11 @@ class TestOrmRawQuery():
         dict_user_one["customer_number"] = int(dict_user_one["customer_number"])
         with engine.connect() as con:
 
-            rs_array = con.execute('SELECT * FROM users').all()
+            result = con.execute('SELECT * FROM users')
 
+            rs_array = [get_dict_from_object(elem) for elem in result]
             assert 1 == len(rs_array)
-            dict_data = get_dict_from_object(rs_array[0])
+            dict_data = rs_array[0]
             assert dict_user_one == dict_data
 
             # ВАЖНО, отрабатывает только та, что сделана через server_default
