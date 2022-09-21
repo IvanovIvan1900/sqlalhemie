@@ -2,6 +2,8 @@ import pytest
 from sqlalchemy import inspect
 from sqlalchemy import table
 
+pytestmark = pytest.mark.usefixtures("clear_db")
+
 class TestWorkWichMetadta:
 
     def test_inspect_table(self, engine, table_orm_users_test_raw:table):

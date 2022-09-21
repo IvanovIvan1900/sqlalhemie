@@ -8,6 +8,7 @@ from sqlalchemy import (Numeric, and_, cast, delete, desc, func, insert, or_,
 from sqlalchemy.engine.base import Connection
 from sqlalchemy.exc import IntegrityError
 
+pytestmark = pytest.mark.usefixtures("clear_db")
 
 def get_dict_from_object(result_items):
     # return dict(result_items._mapping.items()) это для версии 1.4

@@ -5,6 +5,10 @@ from sqlalchemy import (Numeric, and_, cast, delete,
                         select, table, text, update)
 from sqlalchemy.engine.base import Connection
 from sqlalchemy.dialects.postgresql import insert
+import pytest
+
+pytestmark = pytest.mark.usefixtures("clear_db_pg")
+
 
 def get_dict_from_object(result_items):
     return dict(result_items._mapping.items())

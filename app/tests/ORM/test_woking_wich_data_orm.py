@@ -9,6 +9,8 @@ from sqlalchemy.engine.base import Connection
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+pytestmark = pytest.mark.usefixtures("clear_db")
+
 
 def get_dict_from_object(result_items):
     # return dict(result_items._mapping.items())

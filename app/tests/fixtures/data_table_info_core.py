@@ -98,7 +98,7 @@ def table_emploee(engine):
     metadata.create_all(engine)
     return employee_table
 
-@pytest.fixture(scope="function", autouse=True)
+@pytest.fixture()
 def clear_db(engine):
 # It may be enough to disable a foreign key checks just for the current session:
 # con.execute('SET SESSION FOREIGN_KEY_CHECKS = ON')

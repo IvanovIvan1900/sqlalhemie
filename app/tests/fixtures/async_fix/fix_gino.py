@@ -3,6 +3,7 @@ import gino
 import pytest_asyncio
 import pytest
 import asyncio
+from sqlalchemy import inspect
 
 @pytest.fixture(scope="session")
 def event_loop():
@@ -18,6 +19,7 @@ async def db(conn_url):
     engine = await gino.create_engine(async_conn_url, min_size=1,max_size=1)
     db = Gino()
     db.bind = engine
+    await drop_the_table(db)
     yield db
     await db.pop_bind().close()
 
@@ -34,3 +36,12 @@ async def table_tasks(db):
     await db.gino.create_all()
 
     return Task
+
+@pytest_asyncio.fixture()
+async def clear_db_gino(db):
+    for table in db.sorted_tables:
+        await db.status(db.text(f"TRUNCATE {table.name} RESTART IDENTITY CASCADE"))
+
+async def drop_the_table(db):
+    result =  await db.status(db.text("DROP SCHEMA public CASCADE;")) 
+    result =  await db.status(db.text("CREATE SCHEMA public;")) 

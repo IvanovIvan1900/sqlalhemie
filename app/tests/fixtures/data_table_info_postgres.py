@@ -71,7 +71,7 @@ def table_cookies_postgres(engine_postgres):
 
     return cookies
 
-@pytest.fixture(autouse=True)
+@pytest.fixture()
 def clear_db_pg(engine_postgres):
 # It may be enough to disable a foreign key checks just for the current session:
 # con.execute('SET SESSION FOREIGN_KEY_CHECKS = ON')
