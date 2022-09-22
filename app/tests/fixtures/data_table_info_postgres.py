@@ -79,6 +79,8 @@ def clear_db_pg(engine_postgres):
     for table_name in insp.get_table_names():
         engine_postgres.execute(f"DELETE FROM {table_name}")
 
-def drop_the_table(engine_postgres_):
-    engine_postgres_.execute("DROP SCHEMA public CASCADE;")
-    engine_postgres_.execute("CREATE SCHEMA public;")
+def drop_the_table(engine_pg):
+    result = engine_pg.execute("SELECT schema_name FROM information_schema.schemata WHERE schema_name = 'public';")
+    if result.rowcount > 0:
+        engine_pg.execute("DROP SCHEMA public CASCADE;")
+    engine_pg.execute("CREATE SCHEMA public;")

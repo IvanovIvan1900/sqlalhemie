@@ -7,7 +7,7 @@ authors = ["Alex <ivanovivan159753@yandex.ru>"]
 [tool.poetry.dependencies]
 python = "^3.10"
 pytest = "^7.1.2"
-SQLAlchemy = "^1.1.38"
+SQLAlchemy = "^1.2.16"
 psycopg2-binary = "^2.9.3"
 gino = "^1.0.1"
 
@@ -15,6 +15,7 @@ gino = "^1.0.1"
 pylint = "^2.14.3"
 pytest-asyncio = "^0.19.0"
 asyncio = "^3.4.3"
+pytest-dictsdiff = "^0.5.8"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]

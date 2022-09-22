@@ -15,6 +15,21 @@ def event_loop():
 
 @pytest_asyncio.fixture(scope="session")
 async def db(conn_url):
+    # https://python-gino.org/docs/en/master/explanation/engine.html
+#     For Dialect:
+
+    #     isolation_level
+
+    #     paramstyle
+
+    # For Engine:
+
+    #     echo
+
+    #     execution_options
+
+    #     logging_name
+
     async_conn_url = conn_url.replace("postgresql+psycopg2", "postgresql+asyncpg")
     engine = await gino.create_engine(async_conn_url, min_size=1,max_size=1)
     db = Gino()
