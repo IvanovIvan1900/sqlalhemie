@@ -1,13 +1,18 @@
 from operator import setitem
 from typing import Any
 from unittest.mock import ANY
+
 import pytest
-from gino import Gino
-from sqlalchemy.dialects.postgresql import insert
 import sqlalchemy
-from app.tests.utility import get_dict_from_RowProxy, copy_list_update_key_in_dict, aplly_func_to_dict_and_return_dict
+from app.tests.utility import (aplly_func_to_dict_and_return_dict,
+                               copy_list_update_key_in_dict,
+                               get_dict_from_RowProxy)
+from gino import Gino
 from pytest_dictsdiff import check_objects
+from sqlalchemy import select
+from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.engine.result import RowProxy
+from sqlalchemy.sql.functions import count, sum as sql_sum
 
 pytestmark = pytest.mark.usefixtures("clear_db_gino")
 
@@ -102,7 +107,7 @@ class TestGinoQuery():
             assert check_objects(elem_etalon, elem_db.__dict__["__values__"], verbose= 1)
 
     @pytest.mark.asyncio
-    async def test_raw_query_get_first(self, db:Gino, table_tasks, gino_list_dict_5:list[Any], async_list_dict_5:list[dict])->None:
+    async def test_raw_query_get_first_and_one_param(self, db:Gino, table_tasks, gino_list_dict_5:list[Any], async_list_dict_5:list[dict])->None:
         # https://github.com/python-gino/gino/blob/83e60e80e43f7714a626590c3c61385c735457bc/tests/test_crud.py
         #
         # read Using Textual SQL
@@ -118,7 +123,7 @@ class TestGinoQuery():
         assert check_objects(gino_list_dict_5[0], u2.__dict__["__values__"])
 
     @pytest.mark.asyncio
-    async def test_raw_query_get_first(self, db:Gino, table_tasks, gino_list_dict_5:list[Any], async_list_dict_5:list[dict])->None:
+    async def test_raw_query_get_all_and_list_param(self, db:Gino, table_tasks, gino_list_dict_5:list[Any], async_list_dict_5:list[dict])->None:
         # https://github.com/python-gino/gino/blob/83e60e80e43f7714a626590c3c61385c735457bc/tests/test_crud.py
         sql_exp = db.text("""SELECT * FROM tasks WHERE task_id = ANY (:list_uid)""")
         sql_exp = sql_exp.bindparams(sqlalchemy.bindparam('list_uid'))
@@ -129,3 +134,37 @@ class TestGinoQuery():
         assert isinstance(list_row_proxy, list)
         assert isinstance(list_row_proxy[0], RowProxy)
         assert check_objects(gino_list_dict_5[0], get_dict_from_RowProxy(list_row_proxy[0]))
+
+
+
+class TestLoaders():
+# https://github.com/python-gino/gino/blob/eb15470eafec1ed4ea180cd825f168c3635541de/tests/test_loader.py
+    @pytest.mark.asyncio
+    async def test_basic_lodaerd(self, db:Gino, table_tasks, table_tasks_time_track, gino_list_tack_dict_5:dict) -> None:
+        query = table_tasks_time_track.outerjoin(table_tasks).select()
+        tasks_wich_time = await query.gino.load(
+            table_tasks.distinct(table_tasks.task_id).load(add_time_tracks=table_tasks_time_track)).all()
+
+        assert isinstance(tasks_wich_time, list)
+        assert isinstance(tasks_wich_time[0], table_tasks)
+        func_sort = lambda x: x["time_track_id"]
+        for elem in tasks_wich_time:
+            list_etalon = [item for item in gino_list_tack_dict_5["time_tracks"] if item["task_id"] == elem.task_id]
+            list_bd = [item.__dict__["__values__"] for item in elem.time_tracks]
+
+            assert len(list_etalon) == len(list_bd)
+            assert sorted(list_etalon, key=func_sort) == sorted(list_bd, key=func_sort)
+
+    @pytest.mark.asyncio
+    async def test_join_and_load_to_tuple(self, db:Gino, table_tasks, table_tasks_time_track, gino_list_tack_dict_5:dict)->None:
+        summ_sec = sql_sum(table_tasks_time_track.count_secodns).label("sum_sec")
+        time_track_summ = select([table_tasks_time_track.task_id, summ_sec]).group_by(table_tasks_time_track.task_id).alias()
+        query = table_tasks.outerjoin(time_track_summ).select()
+        result = await query.gino.load(
+                (table_tasks.task_id, table_tasks.task_name, summ_sec)
+            ).all()
+        assert len(gino_list_tack_dict_5["tasks"]) == len(result)
+        assert isinstance(result, list)
+        for task_id, task_name, summ_sec in result:
+            summ_etalon = sum((elem["count_secodns"] for elem in gino_list_tack_dict_5["time_tracks"] if elem["task_id"] == task_id))
+            assert summ_etalon if summ_etalon else None == summ_sec

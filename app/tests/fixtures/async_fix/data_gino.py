@@ -10,3 +10,13 @@ async def gino_list_dict_5(table_tasks, async_list_dict_5:list[dict])->list[dict
     result = await stmt.returning(table_tasks.__table__).gino.all()
     return [get_dict_from_RowProxy(elem) for elem in result]
 
+@pytest_asyncio.fixture()
+async def gino_list_tack_dict_5(table_tasks,table_tasks_time_track, async_list_tack_dict_5:dict)->list[dict]:
+    stmt = insert(table_tasks).values(async_list_tack_dict_5["tasks"])
+    result = await stmt.gino.all()
+
+    stmt = insert(table_tasks_time_track).values(async_list_tack_dict_5["time_tracks"])
+    result = await stmt.gino.all()
+
+    return async_list_tack_dict_5
+

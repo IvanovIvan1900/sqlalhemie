@@ -3,7 +3,7 @@ import gino
 import pytest_asyncio
 import pytest
 import asyncio
-from sqlalchemy import inspect
+from sqlalchemy import inspect, ForeignKey
 
 @pytest.fixture(scope="session")
 def event_loop():
@@ -48,6 +48,37 @@ async def table_tasks(db):
         task_name = db.Column(db.String(100), default='noname')
         Num_of_executors = db.Column(db.Integer(), default = 1)
 
+        def __init__(self, **kw):
+                super().__init__(**kw)
+                self._time_tracks = set()
+
+        def __repr__(self) -> str:
+            return f'id: {self.task_id}, name: {self.task_name}, num: {self.Num_of_executors}'
+
+        @property
+        def time_tracks(self):
+            return self._time_tracks
+
+        @time_tracks.setter
+        def add_time_tracks(self, value):
+            self._time_tracks.add(value)
+
+    await db.gino.create_all()
+
+    return Task
+
+
+@pytest_asyncio.fixture(scope="session")
+async def table_tasks_time_track(db, table_tasks):
+    class Task(db.Model):
+        __tablename__ = 'time_tracks'
+
+        task_id = db.Column(db.Integer(), ForeignKey(table_tasks.task_id))
+        time_track_id = db.Column(db.Integer(), primary_key=True)
+        count_secodns = db.Column(db.Integer())
+
+        def __repr__(self) -> str:
+            return f'task_id: {self.task_id}, track_id: {self.time_track_id}, count: {self.count_secodns}'
     await db.gino.create_all()
 
     return Task
