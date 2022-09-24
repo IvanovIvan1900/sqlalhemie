@@ -20,3 +20,10 @@ async def gino_list_tack_dict_5(table_tasks,table_tasks_time_track, async_list_t
 
     return async_list_tack_dict_5
 
+@pytest_asyncio.fixture()
+async def gino_list_files_dict(table_files, async_file_tree:list[dict])->list[dict]:
+    stmt = insert(table_files).values(async_file_tree)
+    result = await stmt.gino.status()
+
+    return async_file_tree
+

@@ -168,3 +168,11 @@ class TestLoaders():
         for task_id, task_name, summ_sec in result:
             summ_etalon = sum((elem["count_secodns"] for elem in gino_list_tack_dict_5["time_tracks"] if elem["task_id"] == task_id))
             assert summ_etalon if summ_etalon else None == summ_sec
+
+
+
+class TestTreeStructure():
+
+    @pytest.mark.asyncio
+    async def test_get_parent_(self, table_files, gino_list_files_dict:list[dict])->None:
+        a =4

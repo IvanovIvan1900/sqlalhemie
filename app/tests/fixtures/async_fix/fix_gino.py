@@ -4,6 +4,12 @@ import pytest_asyncio
 import pytest
 import asyncio
 from sqlalchemy import inspect, ForeignKey
+from enum import Enum
+from gino.dialects.asyncpg import AsyncEnum
+
+class TypeFiles(Enum):
+    FILE = "FILE"
+    FOLDER = "FOLDER"
 
 @pytest.fixture(scope="session")
 def event_loop():
@@ -70,7 +76,7 @@ async def table_tasks(db):
 
 @pytest_asyncio.fixture(scope="session")
 async def table_tasks_time_track(db, table_tasks):
-    class Task(db.Model):
+    class TimeTrack(db.Model):
         __tablename__ = 'time_tracks'
 
         task_id = db.Column(db.Integer(), ForeignKey(table_tasks.task_id))
@@ -81,7 +87,23 @@ async def table_tasks_time_track(db, table_tasks):
             return f'task_id: {self.task_id}, track_id: {self.time_track_id}, count: {self.count_secodns}'
     await db.gino.create_all()
 
-    return Task
+    return TimeTrack
+
+@pytest_asyncio.fixture(scope="session")
+async def table_files(db):
+    class File(db.Model):
+        __tablename__ = 'files'
+
+        file_id = db.Column(db.String(40), primary_key=True)
+        type_file = db.Column(AsyncEnum(TypeFiles), nullable=False)
+        parent_id = db.Column(db.String(40), db.ForeignKey('files.file_id', ondelete="CASCADE"), nullable = True)
+        size = db.Column(db.Integer())
+
+        def __repr__(self) -> str:
+            return f'id: {self.file_id}, parent: {self.parent_id}, size: {self.size}, type: {self.type_file}'
+
+    await db.gino.create_all()
+    return File
 
 @pytest_asyncio.fixture()
 async def clear_db_gino(db):

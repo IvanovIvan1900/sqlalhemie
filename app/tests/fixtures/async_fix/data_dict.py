@@ -87,3 +87,61 @@ def async_list_tack_dict_5():
     ],
     }
 
+@pytest.fixture()
+def async_file_tree():
+    return [
+        {
+            "file_id": "Folder_1",
+            "type_file": "FOLDER",
+            "parent_id": None,
+            "size": 0,
+        },
+        {
+            "file_id": "Folder_2_1",
+            "type_file": "FOLDER",
+            "parent_id": "Folder_1",
+            "size": 0,
+        },
+        {
+            "file_id": "Folder_2_2",
+            "type_file": "FOLDER",
+            "parent_id": "Folder_1",
+            "size": 0,
+        },
+        {
+            "file_id": "File_2_3",
+            "type_file": "FILE",
+            "parent_id": "Folder_1",
+            "size": 128,
+        },
+        {
+            "file_id": "File_3_1",
+            "type_file": "FILE",
+            "parent_id": "Folder_2_2",
+            "size": 512,
+        },
+        {
+            "file_id": "Folder_3_2",
+            "type_file": "FOLDER",
+            "parent_id": "Folder_2_2",
+            "size": 0,
+        },
+        {
+            "file_id": "File_4_1",
+            "type_file": "FILE",
+            "parent_id": "Folder_3_2",
+            "size": 1024,
+        },
+        {
+            "file_id": "File_4_2",
+            "type_file": "FILE",
+            "parent_id": "Folder_3_2",
+            "size": 2048,
+        },
+        # {
+        #     "file_id": "",
+        #     "type_file": "FILE",
+        #     "parent_id": None,
+        #     "size": 10,
+        # },
+    ]
