@@ -1,5 +1,5 @@
-from operator import setitem
-from typing import Any
+from operator import itemgetter, setitem
+from typing import Any, Optional
 from unittest.mock import ANY
 
 import pytest
@@ -13,6 +13,7 @@ from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.engine.result import RowProxy
 from sqlalchemy.sql.functions import count, sum as sql_sum
+from app.tests.tree.tree_implement import Tree
 
 pytestmark = pytest.mark.usefixtures("clear_db_gino")
 
@@ -173,6 +174,86 @@ class TestLoaders():
 
 class TestTreeStructure():
 
+
+    async def get_child_for_node(self,db:Gino, id:str, list_coumnt:list[str],
+                name_column_id:str, name_column_parent_id:str) -> Optional[list[dict]]:
+        # https://bitworks.software/2017-10-20-storing-trees-in-rdbms.html
+        str_column = ",".join(list_coumnt)
+        str_column_files = ",".join((f'f.{elem}' for elem in list_coumnt))
+        result =  await db.status(db.text(f'''
+            WITH RECURSIVE sub_category({str_column}, level) AS (
+            SELECT {str_column}, 1 FROM files WHERE {name_column_id} = :id
+            UNION ALL
+            SELECT {str_column_files}, level+1
+            FROM files f, sub_category sc
+            WHERE f.{name_column_parent_id} = sc.{name_column_id}
+                )
+            SELECT {str_column} FROM sub_category ;
+            '''), {
+                "id": id,
+            })
+        return [get_dict_from_RowProxy(elem) for elem in result[1]]
+
+    async def get_parent_for_node(self, db:Gino, id:str, list_coumnt:list[str],
+                name_column_id:str, name_column_parent_id:str) -> Optional[list[dict]]:
+        # https://bitworks.software/2017-10-20-storing-trees-in-rdbms.html
+        str_column = ",".join(list_coumnt)
+        str_column_files = ",".join((f'f.{elem}' for elem in list_coumnt))
+        result =  await db.status(db.text(f'''
+                WITH RECURSIVE sub_category({str_column}, level) AS (
+                    SELECT {str_column}, 1 FROM files WHERE {name_column_id} = :id
+                    UNION ALL
+                    SELECT {str_column_files}, level+1
+                    FROM files f, sub_category sc
+                    WHERE f.{name_column_id} = sc.{name_column_parent_id}
+                )
+                SELECT {str_column}, level, (SELECT max(level) FROM sub_category) - level AS distance FROM sub_category ORDER BY distance DESC;
+            '''),
+            {"id":id}
+            )
+        set_of_del_key = set(['level', 'distance'])
+        return [{key : val for key, val in sub.items() if key not in set_of_del_key} for sub in result[1]]
+
+
     @pytest.mark.asyncio
-    async def test_get_parent_(self, table_files, gino_list_files_dict:list[dict])->None:
-        a =4
+    async def test_get_child(self, subtests, db:Gino, table_files, all_tree_in_one_list)->None:
+        stmt = insert(table_files).values(all_tree_in_one_list[0])
+        await stmt.gino.status()
+        tree = Tree(key_id = "file_id", key_parent_id = "parent_id")
+        tree.add_data(all_tree_in_one_list[0])
+
+        func_sort = itemgetter("file_id")
+        for id in (elem["file_id"] for elem in all_tree_in_one_list[0]):
+            with subtests.test(msg=f'Get child for id {id}'):
+                list_of_child_from_db = await self.get_child_for_node(db=db, id=id, list_coumnt=["file_id", "type_file", "parent_id", "size"],
+                        name_column_id="file_id", name_column_parent_id="parent_id")
+                list_of_child_etalon = tree.get_child(id_node=id)
+
+                assert len(list_of_child_etalon) == len(list_of_child_from_db)
+
+                for elem_etalon, elem_db in zip(sorted(list_of_child_etalon, key=func_sort),sorted(list_of_child_from_db, key=func_sort)):
+                    assert elem_etalon, elem_db
+
+    @pytest.mark.asyncio
+    async def test_get_parent(self, subtests, db:Gino, table_files, all_tree_in_one_list)->None:
+        stmt = insert(table_files).values(all_tree_in_one_list[0])
+        await stmt.gino.status()
+        tree = Tree(key_id = "file_id", key_parent_id = "parent_id")
+        tree.add_data(all_tree_in_one_list[0])
+
+        func_sort = itemgetter("file_id")
+        for id in (elem["file_id"] for elem in all_tree_in_one_list[0]):
+            with subtests.test(msg=f'Get child for id {id}'):
+                list_of_child_from_db = await self.get_parent_for_node(db=db, id=id, list_coumnt=["file_id", "type_file", "parent_id", "size"],
+                        name_column_id="file_id", name_column_parent_id="parent_id")
+                list_of_child_etalon = tree.get_parent(id_node=id)
+
+                assert len(list_of_child_etalon) == len(list_of_child_from_db)
+
+                for elem_etalon, elem_db in zip(sorted(list_of_child_etalon, key=func_sort),sorted(list_of_child_from_db, key=func_sort)):
+                    assert elem_etalon, elem_db
+
+
+class TestBlocking():
+
+    pass
