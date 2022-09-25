@@ -1,3 +1,7 @@
+from asyncio import Task
+import asyncio
+from decimal import Decimal
+import logging
 from operator import itemgetter, setitem
 from typing import Any, Optional
 from unittest.mock import ANY
@@ -14,6 +18,7 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.engine.result import RowProxy
 from sqlalchemy.sql.functions import count, sum as sql_sum
 from app.tests.tree.tree_implement import Tree
+from asyncpg.exceptions import DeadlockDetectedError
 
 pytestmark = pytest.mark.usefixtures("clear_db_gino")
 
@@ -173,9 +178,9 @@ class TestLoaders():
 
 
 class TestTreeStructure():
+# work wich recursion in postgres https://habr.com/ru/post/269497/?ysclid=l8fw4mx46588764965
 
-
-    async def get_child_for_node(self,db:Gino, id:str, list_coumnt:list[str],
+    async def get_child_for_node_raw_query(self,db:Gino, id:str, list_coumnt:list[str],
                 name_column_id:str, name_column_parent_id:str) -> Optional[list[dict]]:
         # https://bitworks.software/2017-10-20-storing-trees-in-rdbms.html
         str_column = ",".join(list_coumnt)
@@ -194,7 +199,7 @@ class TestTreeStructure():
             })
         return [get_dict_from_RowProxy(elem) for elem in result[1]]
 
-    async def get_parent_for_node(self, db:Gino, id:str, list_coumnt:list[str],
+    async def get_parent_for_node_raw_query(self, db:Gino, id:str, list_coumnt:list[str],
                 name_column_id:str, name_column_parent_id:str) -> Optional[list[dict]]:
         # https://bitworks.software/2017-10-20-storing-trees-in-rdbms.html
         str_column = ",".join(list_coumnt)
@@ -214,9 +219,21 @@ class TestTreeStructure():
         set_of_del_key = set(['level', 'distance'])
         return [{key : val for key, val in sub.items() if key not in set_of_del_key} for sub in result[1]]
 
+    # async def get_parent_for_node_gino_core(self, db:Gino, id:str, table)->None:
+    #     Parent = table.alias()
+    #     parents = db.select([table.parent_id])
+    #     query = table.load(parent=Parent.on(
+    #         table.parent_id == Parent.file_id
+    #     )).where(
+    #         table.file_id.in_(db.select([table.alias().parent_id]))
+    #     )
+    #     list_of_result:list[dict] = []
+    #     list_of_result  = await query.gino.all()
+    #         # list_of_result.append(c)
+    #     a = 4
 
     @pytest.mark.asyncio
-    async def test_get_child(self, subtests, db:Gino, table_files, all_tree_in_one_list)->None:
+    async def test_get_child_raw_query(self, subtests, db:Gino, table_files, all_tree_in_one_list)->None:
         stmt = insert(table_files).values(all_tree_in_one_list[0])
         await stmt.gino.status()
         tree = Tree(key_id = "file_id", key_parent_id = "parent_id")
@@ -225,7 +242,7 @@ class TestTreeStructure():
         func_sort = itemgetter("file_id")
         for id in (elem["file_id"] for elem in all_tree_in_one_list[0]):
             with subtests.test(msg=f'Get child for id {id}'):
-                list_of_child_from_db = await self.get_child_for_node(db=db, id=id, list_coumnt=["file_id", "type_file", "parent_id", "size"],
+                list_of_child_from_db = await self.get_child_for_node_raw_query(db=db, id=id, list_coumnt=["file_id", "type_file", "parent_id", "size"],
                         name_column_id="file_id", name_column_parent_id="parent_id")
                 list_of_child_etalon = tree.get_child(id_node=id)
 
@@ -235,7 +252,7 @@ class TestTreeStructure():
                     assert elem_etalon, elem_db
 
     @pytest.mark.asyncio
-    async def test_get_parent(self, subtests, db:Gino, table_files, all_tree_in_one_list)->None:
+    async def test_get_parent_raw_query(self, subtests, db:Gino, table_files, all_tree_in_one_list)->None:
         stmt = insert(table_files).values(all_tree_in_one_list[0])
         await stmt.gino.status()
         tree = Tree(key_id = "file_id", key_parent_id = "parent_id")
@@ -244,7 +261,7 @@ class TestTreeStructure():
         func_sort = itemgetter("file_id")
         for id in (elem["file_id"] for elem in all_tree_in_one_list[0]):
             with subtests.test(msg=f'Get child for id {id}'):
-                list_of_child_from_db = await self.get_parent_for_node(db=db, id=id, list_coumnt=["file_id", "type_file", "parent_id", "size"],
+                list_of_child_from_db = await self.get_parent_for_node_raw_query(db=db, id=id, list_coumnt=["file_id", "type_file", "parent_id", "size"],
                         name_column_id="file_id", name_column_parent_id="parent_id")
                 list_of_child_etalon = tree.get_parent(id_node=id)
 
@@ -253,7 +270,141 @@ class TestTreeStructure():
                 for elem_etalon, elem_db in zip(sorted(list_of_child_etalon, key=func_sort),sorted(list_of_child_from_db, key=func_sort)):
                     assert elem_etalon, elem_db
 
+    # @pytest.mark.asyncio
+    # async def test_get_parent_gino_core(self, subtests, db:Gino, table_files, all_tree_in_one_list)->None:
+    #     stmt = insert(table_files).values(all_tree_in_one_list[0])
+    #     await stmt.gino.status()
+    #     tree = Tree(key_id = "file_id", key_parent_id = "parent_id")
+    #     tree.add_data(all_tree_in_one_list[0])
+
+    #     func_sort = itemgetter("file_id")
+    #     for id in (elem["file_id"] for elem in all_tree_in_one_list[0]):
+    #         with subtests.test(msg=f'Get child for id {id}'):
+    #             list_of_child_from_db = await self.get_parent_for_node_gino_core(db=db, id=id, table=table_files)
+    #             list_of_child_etalon = tree.get_parent(id_node=id)
+
+    #             assert len(list_of_child_etalon) == len(list_of_child_from_db)
+
+    #             for elem_etalon, elem_db in zip(sorted(list_of_child_etalon, key=func_sort),sorted(list_of_child_from_db, key=func_sort)):
+    #                 assert elem_etalon, elem_db
+
 
 class TestBlocking():
+    # https://habr.com/ru/company/postgrespro/blog/462877/?ysclid=l8dwud10nd529920752
+    # Хороший цикл статей по блокировкам
+    # async def service_update_task(self, db, table_tasks, id_task:int, add_number:int):
+    #     task_list = table_tasks.update.values(Num_of_executors = table_tasks.Num_of_executors +add_number)
+    #     task_list = task_list.where(task_id = id_task)
+    #     await task_list.gino.status()
 
-    pass
+    async def update_wichout_lock(self, db, table_tasks, id_task:int, add_number:int)->None:
+        # так делать нельзя, т.к. между чтением данных и их обновлением происходит их изменение в коркурируещем процесе.
+        task_data = await table_tasks.query.where(table_tasks.task_id == id_task).gino.first()
+        await asyncio.sleep(1)
+        stms = table_tasks.update.values(Num_of_executors = task_data.Num_of_executors +add_number)
+        result = await stms.where(table_tasks.task_id == id_task).gino.status()
+        await asyncio.sleep(1)
+
+    async def update_lock_for_update(self, db, table_tasks, id_task:int, add_number:int, name_task:str)->None:
+        # блокируем запросом для обновления, в данном случаи ключи не меняются поэтому использует FOR NO KEY UPDATE
+        logger = logging.getLogger()
+        logger.debug(f"Login inside {name_task}")
+        async with db.transaction():
+            engine = db.bind
+            task_data = await engine.first(
+                db.text("SELECT * FROM tasks WHERE task_id = :uid FOR NO KEY UPDATE")
+                .bindparams(uid=id_task)
+                .columns(*table_tasks)
+                .execution_options(model=table_tasks)
+            )
+            await asyncio.sleep(1)
+            stms = table_tasks.update.values(Num_of_executors = task_data.Num_of_executors +add_number)
+            result = await stms.where(table_tasks.task_id == id_task).gino.status()
+            await asyncio.sleep(1)
+        logger.debug(f"logout form {name_task}")
+
+    @pytest.mark.asyncio
+    async def test_not_correct_update(self, db, table_tasks, gino_list_dict_5:dict):
+        task_id = gino_list_dict_5[0]["task_id"]
+        task_one = self.update_wichout_lock(db, table_tasks, task_id, 10)
+        task_two = self.update_wichout_lock(db, table_tasks, task_id, 10)
+        reslt = await asyncio.gather(*[task_one, task_two])
+        task_data = await table_tasks.query.where(table_tasks.task_id == task_id).gino.first()
+        assert task_data.Num_of_executors == (gino_list_dict_5[0]["Num_of_executors"] +10)
+
+    @pytest.mark.asyncio
+    async def test_correct_select_for_update(self, db, table_tasks, gino_list_dict_5:dict):
+        task_id = gino_list_dict_5[0]["task_id"]
+        task_one = self.update_lock_for_update(db, table_tasks, task_id, 10, "Task one")
+        task_two = self.update_lock_for_update(db, table_tasks, task_id, 10, "Task two")
+        reslt = await asyncio.gather(*[task_one, task_two])
+        task_data = await table_tasks.query.where(table_tasks.task_id == task_id).gino.first()
+        assert task_data.Num_of_executors == (gino_list_dict_5[0]["Num_of_executors"] +10*2)
+
+    async def make_update_two_row(self, db, table_tasks, first_id:int, two_id:int, name_task:str)->None:
+        add_number = 1
+        logger = logging.getLogger()
+        logger.debug(f"Login inside {name_task}")
+        async with db.transaction():
+            engine = db.bind
+            task_data = await engine.first(
+                db.text("SELECT * FROM tasks WHERE task_id = :uid FOR NO KEY UPDATE")
+                .bindparams(uid=first_id)
+                .columns(*table_tasks)
+                .execution_options(model=table_tasks)
+            )
+            await asyncio.sleep(1)
+            stms = table_tasks.update.values(Num_of_executors = task_data.Num_of_executors +add_number)
+            result = await stms.where(table_tasks.task_id == two_id).gino.status()
+            await asyncio.sleep(1)
+        logger.debug(f"logout form {name_task}")
+
+    async def get_curr_count_deadlock(self, db)->Decimal:
+        engine = db.bind
+        deadlock_data = await engine.first(db.text("SELECT SUM(deadlocks) FROM pg_stat_database ;"))
+        return deadlock_data.values()[0]
+
+    @pytest.mark.asyncio
+    async def test_deadlock(self, db, table_tasks, gino_list_dict_5:dict):
+        deadlock_before = await self.get_curr_count_deadlock(db)
+        first_task_id = gino_list_dict_5[0]["task_id"]
+        two_task_id = gino_list_dict_5[1]["task_id"]
+        task_one = self.make_update_two_row(db, table_tasks, first_task_id, two_task_id, "Task one")
+        task_two = self.make_update_two_row(db, table_tasks, two_task_id, first_task_id, "Task two")
+        result = await asyncio.gather(*[task_one, task_two],return_exceptions=True)
+        first_task_id = await table_tasks.query.where(table_tasks.task_id == first_task_id).gino.first()
+        two_task_id = await table_tasks.query.where(table_tasks.task_id == two_task_id).gino.first()
+        assert isinstance(result[0], DeadlockDetectedError) or isinstance(result[1], DeadlockDetectedError)
+        assert deadlock_before+1 == await self.get_curr_count_deadlock(db)
+
+    async def work_advisory_lock(self, db, table_tasks, name_for_blocking:str, name_task:str)->None:
+        # В отличие от других блокировок (таких, как блокировки отношений), рекомендательные блокировки (advisory locks) 
+        # никогда не устанавливаются автоматически, ими управляет разработчик приложения. Их удобно использовать, например, 
+        # если приложению для каких-то целей требуется логика блокирования, не вписывающаяся в стандартную логику обычных блокировок.
+        # Существуют большой набор функций для работы с рекомендательными блокировками на все случаи жизни:
+
+        #     pg_advisory_lock_shared получает разделяемую блокировку,
+        #     pg_advisory_xact_lock (и pg_advisory_xact_lock_shared) получает блокировку до конца транзакции,
+        #     pg_try_advisory_lock (а также pg_try_advisory_xact_lock и pg_try_advisory_xact_lock_shared) не ожидает получения блокировки, а возвращает ложное значение, если блокировку не удалось получить немедленно.
+        logger = logging.getLogger()
+        async with db.transaction():
+            logger.debug(f"Begin transaction  {name_task} lock name {name_for_blocking}")
+            engine = db.bind
+            await engine.first(
+                    db.text("SELECT pg_advisory_xact_lock(hashtext(:name_block));").bindparams(name_block=name_for_blocking)
+                    )
+            await asyncio.sleep(2)
+            await table_tasks.create(task_name=name_task)
+
+            logger.debug(f"End transaction  {name_task} lock name {name_for_blocking}")
+
+    @pytest.mark.asyncio
+    async def test_deadlock(self, db, table_tasks):
+        task_one = self.work_advisory_lock(db, table_tasks, "Block one", "Task one")
+        task_two = self.work_advisory_lock(db, table_tasks, "Block one", "Task two")
+        task_tree = self.work_advisory_lock(db, table_tasks, "Block two", "Task tree")
+        result = await asyncio.gather(*[task_one, task_two, task_tree])
+        all_tasks = await table_tasks.query.order_by(table_tasks.task_id).gino.all()
+        assert all_tasks[0].task_name == "Task one"
+        assert all_tasks[1].task_name == "Task tree"
+        assert all_tasks[2].task_name == "Task two"

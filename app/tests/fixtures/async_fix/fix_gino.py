@@ -37,7 +37,7 @@ async def db(conn_url):
     #     logging_name
 
     async_conn_url = conn_url.replace("postgresql+psycopg2", "postgresql+asyncpg")
-    engine = await gino.create_engine(async_conn_url, min_size=1,max_size=1)
+    engine = await gino.create_engine(async_conn_url, min_size=1,max_size=5)
     db = Gino()
     db.bind = engine
     await drop_the_table(db)
