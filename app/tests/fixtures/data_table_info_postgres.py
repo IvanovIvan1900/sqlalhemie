@@ -9,12 +9,15 @@ from sqlalchemy import (Boolean, CheckConstraint, Column, DateTime, ForeignKey,
                         inspect)
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import backref, relationship, sessionmaker
+from app.tests.utility import get_url_from_dict
 from sqlalchemy.sql import func
 
 
 @pytest.fixture(scope="session")
-def conn_url():
-    return 'postgresql+psycopg2://alchemie_test:test@127.0.0.1:5456/alchemie_test'
+def conn_url(dict_url):
+    return get_url_from_dict("postgresql+psycopg2", dict_url)
+
+    # return 'postgresql+psycopg2://alchemie_test:test@127.0.0.1:5456/alchemie_test'
 
 @pytest.fixture(scope="session")
 def engine_postgres(conn_url):

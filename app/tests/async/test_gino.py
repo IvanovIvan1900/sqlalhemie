@@ -1,4 +1,3 @@
-from asyncio import Task
 import asyncio
 from decimal import Decimal
 import logging
@@ -16,11 +15,11 @@ from pytest_dictsdiff import check_objects
 from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.engine.result import RowProxy
-from sqlalchemy.sql.functions import count, sum as sql_sum
+from sqlalchemy.sql.functions import sum as sql_sum
 from app.tests.tree.tree_implement import Tree
 from asyncpg.exceptions import DeadlockDetectedError
 
-pytestmark = pytest.mark.usefixtures("clear_db_gino")
+pytestmark = pytest.mark.usefixtures("clear_db_async_pg")
 
 class TestGinoQuery():
 

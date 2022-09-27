@@ -6,6 +6,7 @@ import asyncio
 from sqlalchemy import inspect, ForeignKey
 from enum import Enum
 from gino.dialects.asyncpg import AsyncEnum
+from app.tests.utility import get_url_from_dict
 
 class TypeFiles(Enum):
     FILE = "FILE"
@@ -20,23 +21,18 @@ def event_loop():
 
 
 @pytest_asyncio.fixture(scope="session")
-async def db(conn_url):
+async def db(dict_url):
     # https://python-gino.org/docs/en/master/explanation/engine.html
 #     For Dialect:
-
     #     isolation_level
-
     #     paramstyle
-
     # For Engine:
-
     #     echo
-
     #     execution_options
-
     #     logging_name
 
-    async_conn_url = conn_url.replace("postgresql+psycopg2", "postgresql+asyncpg")
+    # async_conn_url = conn_url.replace("postgresql+psycopg2", "postgresql+asyncpg")
+    async_conn_url =get_url_from_dict("postgresql+asyncpg", dict_url)
     engine = await gino.create_engine(async_conn_url, min_size=1,max_size=5)
     db = Gino()
     db.bind = engine
@@ -111,5 +107,7 @@ async def clear_db_gino(db):
         await db.status(db.text(f"TRUNCATE {table.name} RESTART IDENTITY CASCADE"))
 
 async def drop_the_table(db):
-    result =  await db.status(db.text("DROP SCHEMA public CASCADE;")) 
-    result =  await db.status(db.text("CREATE SCHEMA public;")) 
+    result = await db.all(db.text("SELECT schema_name FROM information_schema.schemata WHERE schema_name = 'public';"))
+    if len(result) > 0:
+        result =  await db.status(db.text("DROP SCHEMA public CASCADE;"))
+    result =  await db.status(db.text("CREATE SCHEMA public;"))
