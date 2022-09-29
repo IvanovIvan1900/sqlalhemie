@@ -32,6 +32,19 @@ def async_pool(event_loop, dict_url:dict):
     finally:
         event_loop.run_until_complete(pool.close())
 
+@pytest_asyncio.fixture(scope="session")
+async def pg_siglton_init(event_loop, dict_url:dict):
+    await pg.init(
+        host=dict_url["host"],
+        port=dict_url["port"],
+        user=dict_url["user"],
+        password=dict_url["password"],
+        database=dict_url["database"],
+        loop=event_loop,
+        min_size=5,
+        max_size=10
+    )
+
 @pytest.fixture(scope='session')
 def async_connection(async_pool, event_loop):
     conn = event_loop.run_until_complete(async_pool.acquire(timeout=2))
@@ -50,7 +63,7 @@ def async_connection(async_pool, event_loop):
 
 @pytest.fixture(scope='session')
 def asyncpg_metadata(dict_url:dict):
-    async_conn_url =get_url_from_dict("postgresql+psycopg2", dict_url)
+    async_conn_url =get_url_from_dict("postgresql", dict_url)
     metadata = MetaData()
     metadata.bind = create_engine(async_conn_url)
     return metadata
